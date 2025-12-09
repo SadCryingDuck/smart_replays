@@ -23,6 +23,7 @@ from datetime import datetime
 from contextlib import suppress
 
 
+# This module contains technical functions that doesn't interact with obs lib.
 class LASTINPUTINFO(ctypes.Structure):
     _fields_ = [('cbSize', wintypes.UINT), ('dwTime', wintypes.DWORD)]
 
@@ -46,9 +47,9 @@ def get_active_window_pid() -> int | None:
 
 def get_executable_path(pid: int) -> Path:
     """
-    Gets path of process's executable.
+    Retrieves the process executable path.
 
-    :param pid: process ID.
+    :param pid: Process ID.
     :return: Executable path.
     """
     process_handle = ctypes.windll.kernel32.OpenProcess(0x0400 | 0x0010, False, pid)
@@ -67,9 +68,9 @@ def get_executable_path(pid: int) -> Path:
 
 def play_sound(path: str | Path):
     """
-    Plays sound using windows engine.
+    Plays sound using the Windows sound engine.
 
-    :param path: path to sound (.wav)
+    :param path: Path to .wav sound.
     """
     with suppress(Exception):
         winsound.PlaySound(str(path), winsound.SND_ASYNC)

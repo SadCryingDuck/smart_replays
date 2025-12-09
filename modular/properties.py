@@ -383,42 +383,6 @@ def setup_aliases_settings(group_obj):
         type=obs.OBS_TEXT_INFO,
     )
 
-    err_text_1 = obs.obs_properties_add_text(
-        props=group_obj,
-        name=PropertiesNames.ALIASES_INVALID_CHARACTERS_TEXT,
-        description="""
-    <div style="font-size: 14px">
-    <span style="color: red">Invalid path or clip name value.<br></span>
-    <span style="color: orange">Clip name cannot contain <code style="color: cyan">&lt; &gt; / \\ | * ? : " %</code> characters.<br>
-    Path cannot contain <code style="color: cyan">&lt; &gt; | * ? " %</code> characters.</span>
-    </div>
-    """,
-        type=obs.OBS_TEXT_INFO,
-    )
-
-    err_text_2 = obs.obs_properties_add_text(
-        props=group_obj,
-        name=PropertiesNames.ALIASES_PATH_EXISTS_TEXT,
-        description="""<div style="font-size: 14px; color: red">This path has already been added to the list.</div>""",
-        type=obs.OBS_TEXT_INFO,
-    )
-
-    err_text_3 = obs.obs_properties_add_text(
-        props=group_obj,
-        name=PropertiesNames.ALIASES_INVALID_FORMAT_TEXT,
-        description="""
-    <div style="font-size: 14px">
-    <span style="color: red">Invalid format.<br></span>
-    <span style="color: orange">Required format: DISK:\\path\\to\\folder\\or\\executable > ClipName<br></span>
-    <span style="color: lightgreen">Example: C:\\Program Files\\Minecraft > Minecraft</span>
-    </div>""",
-        type=obs.OBS_TEXT_INFO,
-    )
-
-    obs.obs_property_set_visible(err_text_1, False)
-    obs.obs_property_set_visible(err_text_2, False)
-    obs.obs_property_set_visible(err_text_3, False)
-
     aliases_list = obs.obs_properties_add_editable_list(
         props=group_obj,
         name=PropertiesNames.ALIASES_LIST_PROP,

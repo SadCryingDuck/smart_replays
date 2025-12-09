@@ -17,11 +17,14 @@ from .exceptions import *
 from .obs_related import get_base_path
 from .clipname_gen import gen_filename
 from .script_helpers import load_aliases
+from .globals import ConfigTypes
+from .script_helpers import get_obs_config
 
 import os
 import json
 import webbrowser
 from pathlib import Path
+import subprocess
 
 import obspython as obs
 
@@ -39,9 +42,9 @@ def update_aliases_callback(p, prop, data):
     """
     Checks the list of aliases and updates aliases menu (shows / hides error texts).
     """
-    invalid_format_err_text = obs.obs_properties_get(p, PropertiesNames.ALIASES_INVALID_FORMAT_TEXT)
-    invalid_chars_err_text = obs.obs_properties_get(p, PropertiesNames.ALIASES_INVALID_CHARACTERS_TEXT)
-    path_exists_err_text = obs.obs_properties_get(p, PropertiesNames.ALIASES_PATH_EXISTS_TEXT)
+    python_exe = os.path.join(
+        get_obs_config('Python', 'Path64bit', str, ConfigTypes.USER), 'pythonw.exe',
+    )
 
     settings_json: dict = json.loads(obs.obs_data_get_json(data))
     if not settings_json:
@@ -49,31 +52,29 @@ def update_aliases_callback(p, prop, data):
 
     try:
         load_aliases(settings_json)
-        obs.obs_property_set_visible(invalid_format_err_text, False)
-        obs.obs_property_set_visible(invalid_chars_err_text, False)
-        obs.obs_property_set_visible(path_exists_err_text, False)
         return True
-
-    except AliasInvalidCharacters as e:
-        obs.obs_property_set_visible(invalid_format_err_text, False)
-        obs.obs_property_set_visible(invalid_chars_err_text, True)
-        obs.obs_property_set_visible(path_exists_err_text, False)
-        index = e.index
-
-    except AliasInvalidFormat as e:
-        obs.obs_property_set_visible(invalid_format_err_text, True)
-        obs.obs_property_set_visible(invalid_chars_err_text, False)
-        obs.obs_property_set_visible(path_exists_err_text, False)
-        index = e.index
-
-    except AliasPathAlreadyExists as e:
-        obs.obs_property_set_visible(invalid_format_err_text, False)
-        obs.obs_property_set_visible(invalid_chars_err_text, False)
-        obs.obs_property_set_visible(path_exists_err_text, True)
-        index = e.index
 
     except AliasParsingError as e:
         index = e.index
+
+        if isinstance(e, AliasInvalidCharacters):
+            error_text = (
+                f'Invalid path or clip name value.\n'
+                f'Clip name cannot contain < < / \\ | * ? : " % characters.\n'
+                f'Path cannot contain < > | * ? " % characters.'
+            )
+        elif isinstance(e, AliasInvalidFormat):
+            error_text = (
+                f'Invalid alias format.\n'
+                f'Required format: DISK:\\path\\to\\folder\\or\\executable > NameYouWantToSee.\n'
+                f'Example: C:\\Program Files\\Minecraft > Minecraft'
+            )
+        elif isinstance(e, AliasPathAlreadyExists):
+            error_text = f'This path has already been added to the list.'
+        else:
+            error_text = 'Unknown error'
+
+        subprocess.Popen([python_exe, __file__, 'error', error_text])
 
     # If error in parsing
     settings_json[PropertiesNames.ALIASES_LIST_PROP].pop(index)

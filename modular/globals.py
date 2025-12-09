@@ -131,10 +131,10 @@ class PropertiesNames:
     ALIASES_LIST_PROP = 'aliases_list'
     ALIASES_DESC_TEXT = 'aliases_desc'
 
-    # Aliases parsing error texts
-    ALIASES_PATH_EXISTS_TEXT = 'aliases_path_exists_err'
-    ALIASES_INVALID_FORMAT_TEXT = 'aliases_invalid_format_err'
-    ALIASES_INVALID_CHARACTERS_TEXT = 'aliases_invalid_characters_err'
+    # # Aliases parsing error texts
+    # ALIASES_PATH_EXISTS_TEXT = 'aliases_path_exists_err'
+    # ALIASES_INVALID_FORMAT_TEXT = 'aliases_invalid_format_err'
+    # ALIASES_INVALID_CHARACTERS_TEXT = 'aliases_invalid_characters_err'
 
     # Export / Import aliases section
     ALIASES_EXPORT_PATH_PROP = 'aliases_export_path'

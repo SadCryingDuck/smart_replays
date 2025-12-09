@@ -16,6 +16,7 @@ import sys
 import time
 import tkinter as tk
 from tkinter import font as f
+from tkinter import messagebox
 
 
 # This part of the script uses only when it is run as a main program, not imported by OBS.
@@ -182,9 +183,29 @@ class NotificationWindow:
         self.close()
 
 
-if __name__ == '__main__':
-    t = sys.argv[1] if len(sys.argv) > 1 else 'Test Title'
-    m = sys.argv[2] if len(sys.argv) > 2 else 'Test Message'
-    color = sys.argv[3] if len(sys.argv) > 3 else '#76B900'
-    NotificationWindow(t, m, color).show()
+def show_error_window(error_text: str):
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+
+    messagebox.showerror('[Smart Replays] - Error', error_text)
+    root.destroy()
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit()
+
+    if sys.argv[1] == 'error':
+        text = sys.argv[2] if len(sys.argv) > 2 else 'Error'
+        show_error_window(text)
+    elif sys.argv[1] == 'notification':
+        t = sys.argv[2] if len(sys.argv) > 2 else 'Test Title'
+        m = sys.argv[3] if len(sys.argv) > 3 else 'Test Message'
+        color = sys.argv[4] if len(sys.argv) > 4 else '#76B900'
+        NotificationWindow(t, m, color).show()
     sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()

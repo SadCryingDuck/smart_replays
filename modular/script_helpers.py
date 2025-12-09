@@ -26,7 +26,7 @@ import obspython as obs
 
 def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayModes):
     """
-    Plays and shows success / failure notification if it's enabled in notifications settings.
+    Plays and shows the success/failure notification if it's enabled in the notification settings.
     """
     sound_notifications = obs.obs_data_get_bool(
         VARIABLES.script_settings, PropertiesNames.SOUND_NOTIFICATION_SETTINGS_GROUP,
@@ -57,7 +57,7 @@ def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayMo
         if popup_notifications and obs.obs_data_get_bool(
             VARIABLES.script_settings, PropertiesNames.POPUP_CLIPS_ON_SUCCESS_PROP,
         ):
-            subprocess.Popen([python_exe, __file__, 'Clip saved', f'Clip saved to {clip_path}'])
+            subprocess.Popen([python_exe, __file__, 'notification', 'Clip saved', f'Clip saved to {clip_path}'])
     else:
         if sound_notifications and obs.obs_data_get_bool(
             VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PROP,
@@ -71,7 +71,7 @@ def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayMo
             VARIABLES.script_settings, PropertiesNames.POPUP_CLIPS_ON_FAILURE_PROP,
         ):
             subprocess.Popen(
-                [python_exe, __file__, 'Clip not saved', 'More in the logs.', '#C00000'],
+                [python_exe, __file__, 'notification', 'Clip not saved', 'More in the logs.', '#C00000'],
             )
 
 

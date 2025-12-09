@@ -11,16 +11,17 @@
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
+from __future__ import annotations
+
+import json
+import traceback
+from urllib.request import urlopen
 
 from .tech import _print
 
-from urllib.request import urlopen
-import json
-import traceback
-
 
 def get_latest_release_tag() -> dict | None:  # todo: for future updates
-    url = "https://api.github.com/repos/qvvonk/smart_replays/releases/latest"
+    url = 'https://api.github.com/repos/qvvonk/smart_replays/releases/latest'
 
     try:
         with urlopen(url, timeout=2) as response:
@@ -28,7 +29,7 @@ def get_latest_release_tag() -> dict | None:  # todo: for future updates
                 data = json.load(response)
                 return data.get('tag_name')
     except:
-        _print(f"Failed to check updates.")
+        _print('Failed to check updates.')
         _print(traceback.format_exc())
     return None
 

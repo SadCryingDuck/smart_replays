@@ -11,15 +11,16 @@
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
+from __future__ import annotations
 
-
-from .globals import VARIABLES
-from .obs_related import get_replay_buffer_max_time, restart_replay_buffering
-from .tech import get_time_since_last_input, get_active_window_pid, get_executable_path, _print
-
-import obspython as obs
 from threading import Thread
 from contextlib import suppress
+
+import obspython as obs
+
+from .tech import _print, get_executable_path, get_active_window_pid, get_time_since_last_input
+from .globals import VARIABLES
+from .obs_related import restart_replay_buffering, get_replay_buffer_max_time
 
 
 def restart_replay_buffering_callback():
@@ -28,7 +29,7 @@ def restart_replay_buffering_callback():
 
     This callback is only called by the obs timer.
     """
-    _print("Restart replay buffering callback.")
+    _print('Restart replay buffering callback.')
     obs.timer_remove(restart_replay_buffering_callback)
 
     replay_length = get_replay_buffer_max_time()
@@ -37,7 +38,9 @@ def restart_replay_buffering_callback():
         next_call = int((replay_length - last_input_time) * 1000)
         next_call = next_call if next_call >= 2000 else 2000
 
-        _print(f"Replay length ({replay_length}s) is greater then time since last input ({last_input_time}s). Next call in {next_call / 1000}s.")
+        _print(
+            f'Replay length ({replay_length}s) is greater then time since last input ({last_input_time}s). Next call in {next_call / 1000}s.',
+        )
         obs.timer_add(restart_replay_buffering_callback, next_call)
         return
 

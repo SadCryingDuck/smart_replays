@@ -11,19 +11,25 @@
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
+from __future__ import annotations
 
-from .globals import VARIABLES, PN, CONSTANTS, PopupPathDisplayModes
-from .tech import _print
-from .obs_related import get_replay_buffer_max_time, restart_replay_buffering
-from .script_helpers import notify
-from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history, append_video_exe_history
-from .save_buffer import move_clip_file
+import traceback
 from pathlib import Path
+from threading import Thread
+from collections import deque, defaultdict
 
 import obspython as obs
-from collections import deque, defaultdict
-from threading import Thread
-import traceback
+
+from .tech import _print
+from .globals import PN, CONSTANTS, VARIABLES, PopupPathDisplayModes
+from .obs_related import restart_replay_buffering, get_replay_buffer_max_time
+from .save_buffer import move_clip_file
+from .script_helpers import notify
+from .other_callbacks import (
+    append_clip_exe_history,
+    append_video_exe_history,
+    restart_replay_buffering_callback,
+)
 
 
 def on_buffer_recording_started_callback(event):
@@ -36,11 +42,14 @@ def on_buffer_recording_started_callback(event):
 
     # Reset and restart exe history
     VARIABLES.clip_exe_history = deque([], maxlen=get_replay_buffer_max_time())
-    _print(f"Exe history deque created. Maxlen={VARIABLES.clip_exe_history.maxlen}.")
+    _print(f'Exe history deque created. Maxlen={VARIABLES.clip_exe_history.maxlen}.')
     obs.timer_add(append_clip_exe_history, 1000)
 
     # Start replay buffer auto restart loop.
-    if restart_loop_time := obs.obs_data_get_int(VARIABLES.script_settings, PN.PROP_RESTART_BUFFER_LOOP):
+    if restart_loop_time := obs.obs_data_get_int(
+        VARIABLES.script_settings,
+        PN.PROP_RESTART_BUFFER_LOOP,
+    ):
         obs.timer_add(restart_replay_buffering_callback, restart_loop_time * 1000)
 
 
@@ -61,11 +70,13 @@ def on_buffer_save_callback(event):
     if event is not obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_SAVED:
         return
 
-    path_display_type = obs.obs_data_get_int(VARIABLES.script_settings,
-                                             PN.PROP_POPUP_PATH_DISPLAY_MODE)
+    path_display_type = obs.obs_data_get_int(
+        VARIABLES.script_settings,
+        PN.PROP_POPUP_PATH_DISPLAY_MODE,
+    )
     path_display_type = PopupPathDisplayModes(path_display_type)
 
-    _print(f"{'SAVING BUFFER':->50}")
+    _print(f'{"SAVING BUFFER":->50}')
 
     try:
         clip_name, path = move_clip_file(mode=VARIABLES.force_mode)
@@ -81,10 +92,10 @@ def on_buffer_save_callback(event):
 
         notify(True, path, path_display_mode=path_display_type)
     except:
-        _print("An error occurred while moving file to the new destination.")
+        _print('An error occurred while moving file to the new destination.')
         _print(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
-    _print("-" * 50)
+    _print('-' * 50)
 
 
 def on_video_recording_started_callback(event):  # todo: for future updates

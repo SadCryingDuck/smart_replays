@@ -11,11 +11,14 @@
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
+from __future__ import annotations
+
 
 class AliasParsingError(Exception):
     """
-    Base exception for all alias related exceptions.
+    Base exception for all alias-related exceptions.
     """
+
     def __init__(self, index):
         """
         :param index: alias index.
@@ -26,7 +29,7 @@ class AliasParsingError(Exception):
 
 class AliasPathAlreadyExists(AliasParsingError):
     """
-    Exception raised when an alias is already exists.
+    Exception raised when an alias already exists.
     """
 
 
@@ -38,5 +41,5 @@ class AliasInvalidCharacters(AliasParsingError):
 
 class AliasInvalidFormat(AliasParsingError):
     """
-    Exception raised when an alias is invalid format.
+    Exception raised when an alias has the invalid format.
     """

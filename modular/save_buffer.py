@@ -13,7 +13,7 @@
 #  GNU Affero General Public License for more details.
 
 from .tech import _print, create_hard_link
-from .globals import PropertiesNames, CONSTANTS, VARIABLES, ClipNamingModes
+from .globals import CONSTANTS, VARIABLES, ClipNamingModes, PropertiesNames
 from .obs_related import get_base_path, get_last_replay_file_name
 from .clipname_gen import gen_filename, gen_clip_base_name, ensure_unique_filename
 
@@ -30,7 +30,8 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     clip_name = gen_clip_base_name(mode)
     ext = old_file_path.split('.')[-1]
     filename_template = obs.obs_data_get_string(
-        VARIABLES.script_settings, PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP,
+        VARIABLES.script_settings,
+        PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP,
     )
     filename = gen_filename(clip_name, filename_template) + f'.{ext}'
 
@@ -48,7 +49,8 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
 
     if obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.CLIPS_CREATE_LINKS_PROP):
         links_folder = obs.obs_data_get_string(
-            VARIABLES.script_settings, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP,
+            VARIABLES.script_settings,
+            PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP,
         )
         create_hard_link(new_path, links_folder)
     return clip_name, new_path

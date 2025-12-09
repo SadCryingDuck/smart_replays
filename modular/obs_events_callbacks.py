@@ -13,7 +13,7 @@
 #  GNU Affero General Public License for more details.
 
 from .tech import _print
-from .globals import PropertiesNames, CONSTANTS, VARIABLES, PopupPathDisplayModes
+from .globals import CONSTANTS, VARIABLES, PropertiesNames, PopupPathDisplayModes
 from .obs_related import restart_replay_buffering, get_replay_buffer_max_time
 from .save_buffer import move_clip_file
 from .script_helpers import notify
@@ -46,7 +46,8 @@ def on_buffer_recording_started_callback(event):
 
     # Start replay buffer auto restart loop.
     if restart_loop_time := obs.obs_data_get_int(
-        VARIABLES.script_settings, PropertiesNames.RESTART_BUFFER_LOOP_PROP,
+        VARIABLES.script_settings,
+        PropertiesNames.RESTART_BUFFER_LOOP_PROP,
     ):
         obs.timer_add(restart_replay_buffering_callback, restart_loop_time * 1000)
 
@@ -69,7 +70,8 @@ def on_buffer_save_callback(event):
         return
 
     path_display_type = obs.obs_data_get_int(
-        VARIABLES.script_settings, PropertiesNames.POPUP_PATH_DISPLAY_MODE_PROP,
+        VARIABLES.script_settings,
+        PropertiesNames.POPUP_PATH_DISPLAY_MODE_PROP,
     )
     path_display_type = PopupPathDisplayModes(path_display_type)
 

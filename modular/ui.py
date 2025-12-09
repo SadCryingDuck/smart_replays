@@ -15,8 +15,7 @@
 import sys
 import time
 import tkinter as tk
-from tkinter import font as f
-from tkinter import messagebox
+from tkinter import font as f, messagebox
 
 
 # This part of the script uses only when it is run as a main program, not imported by OBS.
@@ -108,19 +107,29 @@ class NotificationWindow:
         self.window.geometry(f'{self.wnd_w}x{self.wnd_h}+{self.wnd_x}+{self.wnd_y}')
 
         self.first_frame = tk.Frame(
-            self.window, bg=self.primary_color, bd=0, width=1, height=self.wnd_h,
+            self.window,
+            bg=self.primary_color,
+            bd=0,
+            width=1,
+            height=self.wnd_h,
         )
         self.first_frame.place(x=self.wnd_w - 1, y=0)
 
         self.second_frame = tk.Frame(
-            self.window, bg=self.bg_color, bd=0, width=1, height=self.wnd_h,
+            self.window,
+            bg=self.bg_color,
+            bd=0,
+            width=1,
+            height=self.wnd_h,
         )
         self.second_frame.pack_propagate(False)
         self.second_frame.place(x=self.wnd_w - 1, y=0)
 
         self.content_frame = tk.Frame(self.second_frame, bg=self.bg_color, bd=0, height=self.wnd_h)
         self.content_frame.pack(
-            fill=tk.X, padx=self.content_frame_padding_x, pady=self.content_frame_padding_y,
+            fill=tk.X,
+            padx=self.content_frame_padding_x,
+            pady=self.content_frame_padding_y,
         )
 
         self.title_label = tk.Label(

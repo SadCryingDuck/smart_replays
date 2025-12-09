@@ -13,7 +13,7 @@
 #  GNU Affero General Public License for more details.
 
 from .tech import _print
-from .globals import PropertiesNames, CONSTANTS, VARIABLES, ClipNamingModes, PopupPathDisplayModes
+from .globals import CONSTANTS, VARIABLES, ClipNamingModes, PropertiesNames, PopupPathDisplayModes
 from .hotkeys import load_hotkeys
 from .obs_related import get_base_path
 from .script_helpers import load_aliases
@@ -33,14 +33,20 @@ def script_defaults(s):
     _print('Loading default values...')
     obs.obs_data_set_default_string(s, PropertiesNames.CLIPS_BASE_PATH_PROP, str(get_base_path()))
     obs.obs_data_set_default_int(
-        s, PropertiesNames.CLIPS_NAMING_MODE_PROP, ClipNamingModes.CURRENT_PROCESS.value,
+        s,
+        PropertiesNames.CLIPS_NAMING_MODE_PROP,
+        ClipNamingModes.CURRENT_PROCESS.value,
     )
     obs.obs_data_set_default_string(
-        s, PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP, CONSTANTS.DEFAULT_FILENAME_FORMAT,
+        s,
+        PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP,
+        CONSTANTS.DEFAULT_FILENAME_FORMAT,
     )
     obs.obs_data_set_default_bool(s, PropertiesNames.CLIPS_SAVE_TO_FOLDER_PROP, True)
     obs.obs_data_set_default_string(
-        s, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP, str(get_base_path() / '_links'),
+        s,
+        PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP,
+        str(get_base_path() / '_links'),
     )
 
     # obs.obs_data_set_default_int(s, PropertiesNames.VIDEOS_NAMING_MODE_PROP, VideoNamingModes.MOST_RECORDED_PROCESS.value)
@@ -52,7 +58,9 @@ def script_defaults(s):
     obs.obs_data_set_default_bool(s, PropertiesNames.POPUP_CLIPS_ON_SUCCESS_PROP, False)
     obs.obs_data_set_default_bool(s, PropertiesNames.POPUP_CLIPS_ON_FAILURE_PROP, False)
     obs.obs_data_set_default_int(
-        s, PropertiesNames.POPUP_PATH_DISPLAY_MODE_PROP, PopupPathDisplayModes.FULL_PATH.value,
+        s,
+        PropertiesNames.POPUP_PATH_DISPLAY_MODE_PROP,
+        PopupPathDisplayModes.FULL_PATH.value,
     )
 
     obs.obs_data_set_default_int(s, PropertiesNames.RESTART_BUFFER_LOOP_PROP, 3600)

@@ -12,30 +12,28 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-import sys
-import time
-import tkinter as tk
-import re
-import ctypes
-import json
-import traceback
 import os
-import webbrowser
-import subprocess
+import re
+import sys
+import json
+import time
+import ctypes
+import tkinter as tk
 import winsound
-from tkinter import font as f
-from tkinter import messagebox
+import traceback
+import subprocess
+import webbrowser
 from enum import Enum
-from pathlib import Path
-from threading import Lock
-from threading import Thread
-from collections import deque
-from collections import defaultdict
-from urllib.request import urlopen
 from ctypes import wintypes
-from datetime import datetime
-from contextlib import suppress
 from typing import Any
+from pathlib import Path
+from tkinter import font as f, messagebox
+from datetime import datetime
+from threading import Lock, Thread
+from contextlib import suppress
+from collections import deque, defaultdict
+from urllib.request import urlopen
+
 
 if __name__ != '__main__':
     import obspython as obs
@@ -131,19 +129,29 @@ class NotificationWindow:
         self.window.geometry(f'{self.wnd_w}x{self.wnd_h}+{self.wnd_x}+{self.wnd_y}')
 
         self.first_frame = tk.Frame(
-            self.window, bg=self.primary_color, bd=0, width=1, height=self.wnd_h,
+            self.window,
+            bg=self.primary_color,
+            bd=0,
+            width=1,
+            height=self.wnd_h,
         )
         self.first_frame.place(x=self.wnd_w - 1, y=0)
 
         self.second_frame = tk.Frame(
-            self.window, bg=self.bg_color, bd=0, width=1, height=self.wnd_h,
+            self.window,
+            bg=self.bg_color,
+            bd=0,
+            width=1,
+            height=self.wnd_h,
         )
         self.second_frame.pack_propagate(False)
         self.second_frame.place(x=self.wnd_w - 1, y=0)
 
         self.content_frame = tk.Frame(self.second_frame, bg=self.bg_color, bd=0, height=self.wnd_h)
         self.content_frame.pack(
-            fill=tk.X, padx=self.content_frame_padding_x, pady=self.content_frame_padding_y,
+            fill=tk.X,
+            padx=self.content_frame_padding_x,
+            pady=self.content_frame_padding_y,
         )
 
         self.title_label = tk.Label(
@@ -369,6 +377,7 @@ class PropertiesNames:
 
 
 # -------------------- exceptions.py --------------------
+
 
 class AliasParsingError(Exception):
     """
@@ -707,19 +716,25 @@ def setup_notifications_settings(group_obj):
 
     obs.obs_property_set_visible(
         success_path_prop,
-        obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PROP),
+        obs.obs_data_get_bool(
+            VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PROP,
+        ),
     )
     obs.obs_property_set_visible(
         failure_path_prop,
-        obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PROP),
+        obs.obs_data_get_bool(
+            VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PROP,
+        ),
     )
 
     # ----- Callbacks ------
     obs.obs_property_set_modified_callback(
-        notification_success_prop, update_notifications_menu_callback,
+        notification_success_prop,
+        update_notifications_menu_callback,
     )
     obs.obs_property_set_modified_callback(
-        notification_failure_prop, update_notifications_menu_callback,
+        notification_failure_prop,
+        update_notifications_menu_callback,
     )
 
 
@@ -882,7 +897,11 @@ def script_properties():
     other_gr = obs.obs_properties_create()
 
     obs.obs_properties_add_group(
-        p, PropertiesNames.CLIPS_PATH_SETTINGS_GROUP, 'Clip path settings', obs.OBS_GROUP_NORMAL, clip_path_gr,
+        p,
+        PropertiesNames.CLIPS_PATH_SETTINGS_GROUP,
+        'Clip path settings',
+        obs.OBS_GROUP_NORMAL,
+        clip_path_gr,
     )
     # obs.obs_properties_add_group(p, PropertiesNames.VIDEOS_PATH_SETTINGS_GROUP, "Video path settings", obs.OBS_GROUP_NORMAL, video_path_gr)   # todo: for future updates
     obs.obs_properties_add_group(
@@ -900,9 +919,15 @@ def script_properties():
         popup_gr,
     )
     obs.obs_properties_add_group(
-        p, PropertiesNames.ALIASES_SETTINGS_GROUP, 'Aliases', obs.OBS_GROUP_NORMAL, aliases_gr,
+        p,
+        PropertiesNames.ALIASES_SETTINGS_GROUP,
+        'Aliases',
+        obs.OBS_GROUP_NORMAL,
+        aliases_gr,
     )
-    obs.obs_properties_add_group(p, PropertiesNames.OTHER_SETTINGS_GROUP, 'Other', obs.OBS_GROUP_NORMAL, other_gr)
+    obs.obs_properties_add_group(
+        p, PropertiesNames.OTHER_SETTINGS_GROUP, 'Other', obs.OBS_GROUP_NORMAL, other_gr,
+    )
 
     # ------ Setup properties ------
     setup_clip_paths_settings(clip_path_gr)
@@ -930,7 +955,8 @@ def update_aliases_callback(p, prop, data):
     Checks the list of aliases and updates aliases menu (shows / hides error texts).
     """
     python_exe = os.path.join(
-        get_obs_config('Python', 'Path64bit', str, ConfigTypes.USER), 'pythonw.exe',
+        get_obs_config('Python', 'Path64bit', str, ConfigTypes.USER),
+        'pythonw.exe',
     )
 
     settings_json: dict = json.loads(obs.obs_data_get_json(data))
@@ -946,18 +972,18 @@ def update_aliases_callback(p, prop, data):
 
         if isinstance(e, AliasInvalidCharacters):
             error_text = (
-                f'Invalid path or clip name value.\n'
-                f'Clip name cannot contain < < / \\ | * ? : " % characters.\n'
-                f'Path cannot contain < > | * ? " % characters.'
+                'Invalid path or clip name value.\n'
+                'Clip name cannot contain < < / \\ | * ? : " % characters.\n'
+                'Path cannot contain < > | * ? " % characters.'
             )
         elif isinstance(e, AliasInvalidFormat):
             error_text = (
-                f'Invalid alias format.\n'
-                f'Required format: DISK:\\path\\to\\folder\\or\\executable > NameYouWantToSee.\n'
-                f'Example: C:\\Program Files\\Minecraft > Minecraft'
+                'Invalid alias format.\n'
+                'Required format: DISK:\\path\\to\\folder\\or\\executable > NameYouWantToSee.\n'
+                'Example: C:\\Program Files\\Minecraft > Minecraft'
             )
         elif isinstance(e, AliasPathAlreadyExists):
-            error_text = f'This path has already been added to the list.'
+            error_text = 'This path has already been added to the list.'
         else:
             error_text = 'Unknown error'
 
@@ -984,7 +1010,9 @@ def check_filename_template_callback(p, prop, data):
     error_text = obs.obs_properties_get(p, PropertiesNames.CLIPS_FILENAME_TEMPLATE_ERR_TEXT)
 
     try:
-        gen_filename('clipname', obs.obs_data_get_string(data, PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP))
+        gen_filename(
+            'clipname', obs.obs_data_get_string(data, PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP),
+        )
         obs.obs_property_set_visible(error_text, False)
     except:
         obs.obs_property_set_visible(error_text, True)
@@ -993,7 +1021,9 @@ def check_filename_template_callback(p, prop, data):
 
 def update_links_path_prop_visibility(p, prop, data):
     path_prop = obs.obs_properties_get(p, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP)
-    path_warn_prop = obs.obs_properties_get(p, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_WARNING_TEXT)
+    path_warn_prop = obs.obs_properties_get(
+        p, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_WARNING_TEXT,
+    )
     is_visible = obs.obs_data_get_bool(data, obs.obs_property_name(prop))
 
     obs.obs_property_set_visible(path_prop, is_visible)
@@ -1016,7 +1046,9 @@ def check_clips_links_folder_path_callback(p, prop, data):
     else:
         obs.obs_property_text_set_info_type(warn_text, obs.OBS_TEXT_INFO_ERROR)
         obs.obs_data_set_string(
-            data, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP, str(obs_records_path / '_links'),
+            data,
+            PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP,
+            str(obs_records_path / '_links'),
         )
     return True
 
@@ -1026,8 +1058,12 @@ def update_notifications_menu_callback(p, prop, data):
     Updates notifications settings menu.
     If notification is enabled, shows path widget.
     """
-    success_path_prop = obs.obs_properties_get(p, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PATH_PROP)
-    failure_path_prop = obs.obs_properties_get(p, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PATH_PROP)
+    success_path_prop = obs.obs_properties_get(
+        p, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PATH_PROP,
+    )
+    failure_path_prop = obs.obs_properties_get(
+        p, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PATH_PROP,
+    )
 
     on_success = obs.obs_data_get_bool(data, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PROP)
     on_failure = obs.obs_data_get_bool(data, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PROP)
@@ -1060,7 +1096,9 @@ def import_aliases_from_json_callback(*args):
     """
     Imports aliases from JSON file.
     """
-    path = obs.obs_data_get_string(VARIABLES.script_settings, PropertiesNames.ALIASES_IMPORT_PATH_PROP)
+    path = obs.obs_data_get_string(
+        VARIABLES.script_settings, PropertiesNames.ALIASES_IMPORT_PATH_PROP,
+    )
     if not path or not os.path.exists(path) or not os.path.isfile(path):
         return False
 
@@ -1085,7 +1123,9 @@ def export_aliases_to_json_callback(*args):
     """
     Exports aliases to JSON file.
     """
-    path = obs.obs_data_get_string(VARIABLES.script_settings, PropertiesNames.ALIASES_EXPORT_PATH_PROP)
+    path = obs.obs_data_get_string(
+        VARIABLES.script_settings, PropertiesNames.ALIASES_EXPORT_PATH_PROP,
+    )
     if not path or not os.path.exists(path) or not os.path.isdir(path):
         return False
 
@@ -1103,7 +1143,11 @@ class LASTINPUTINFO(ctypes.Structure):
 
 
 def _print(
-    *values, sep: str | None = None, end: str | None = None, file=None, flush: bool = False,
+    *values,
+    sep: str | None = None,
+    end: str | None = None,
+    file=None,
+    flush: bool = False,
 ):
     str_time = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
     print(f'[{str_time}]', *values, sep=sep, end=end, file=file, flush=flush)
@@ -1262,7 +1306,9 @@ def get_base_path(script_settings: Any | None = None) -> Path:
     :return: The base path as a `Path` object.
     """
     if script_settings is not None:
-        script_path = obs.obs_data_get_string(script_settings, PropertiesNames.CLIPS_BASE_PATH_PROP)
+        script_path = obs.obs_data_get_string(
+            script_settings, PropertiesNames.CLIPS_BASE_PATH_PROP,
+        )
         # If PropertiesNames.CLIPS_BASE_PATH_PROP is not saved in the script config, then it has a default value,
         # which is the value from the OBS config.
         if script_path:
@@ -1296,13 +1342,16 @@ def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayMo
     Plays and shows the success/failure notification if it's enabled in the notification settings.
     """
     sound_notifications = obs.obs_data_get_bool(
-        VARIABLES.script_settings, PropertiesNames.SOUND_NOTIFICATION_SETTINGS_GROUP,
+        VARIABLES.script_settings,
+        PropertiesNames.SOUND_NOTIFICATION_SETTINGS_GROUP,
     )
     popup_notifications = obs.obs_data_get_bool(
-        VARIABLES.script_settings, PropertiesNames.POPUP_NOTIFICATION_SETTINGS_GROUP,
+        VARIABLES.script_settings,
+        PropertiesNames.POPUP_NOTIFICATION_SETTINGS_GROUP,
     )
     python_exe = os.path.join(
-        get_obs_config('Python', 'Path64bit', str, ConfigTypes.APP), 'pythonw.exe',
+        get_obs_config('Python', 'Path64bit', str, ConfigTypes.APP),
+        'pythonw.exe',
     )
 
     if path_display_mode == PopupPathDisplayModes.JUST_FILE:
@@ -1314,31 +1363,46 @@ def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayMo
 
     if success:
         if sound_notifications and obs.obs_data_get_bool(
-            VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PROP,
+            VARIABLES.script_settings,
+            PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PROP,
         ):
             path = obs.obs_data_get_string(
-                VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PATH_PROP,
+                VARIABLES.script_settings,
+                PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PATH_PROP,
             )
             play_sound(path)
 
         if popup_notifications and obs.obs_data_get_bool(
-            VARIABLES.script_settings, PropertiesNames.POPUP_CLIPS_ON_SUCCESS_PROP,
-        ):
-            subprocess.Popen([python_exe, __file__, 'notification', 'Clip saved', f'Clip saved to {clip_path}'])
-    else:
-        if sound_notifications and obs.obs_data_get_bool(
-            VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PROP,
-        ):
-            path = obs.obs_data_get_string(
-                VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PATH_PROP,
-            )
-            play_sound(path)
-
-        if popup_notifications and obs.obs_data_get_bool(
-            VARIABLES.script_settings, PropertiesNames.POPUP_CLIPS_ON_FAILURE_PROP,
+            VARIABLES.script_settings,
+            PropertiesNames.POPUP_CLIPS_ON_SUCCESS_PROP,
         ):
             subprocess.Popen(
-                [python_exe, __file__, 'notification', 'Clip not saved', 'More in the logs.', '#C00000'],
+                [python_exe, __file__, 'notification', 'Clip saved', f'Clip saved to {clip_path}'],
+            )
+    else:
+        if sound_notifications and obs.obs_data_get_bool(
+            VARIABLES.script_settings,
+            PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PROP,
+        ):
+            path = obs.obs_data_get_string(
+                VARIABLES.script_settings,
+                PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PATH_PROP,
+            )
+            play_sound(path)
+
+        if popup_notifications and obs.obs_data_get_bool(
+            VARIABLES.script_settings,
+            PropertiesNames.POPUP_CLIPS_ON_FAILURE_PROP,
+        ):
+            subprocess.Popen(
+                [
+                    python_exe,
+                    __file__,
+                    'notification',
+                    'Clip not saved',
+                    'More in the logs.',
+                    '#C00000',
+                ],
             )
 
 
@@ -1414,7 +1478,8 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
             )
             if VARIABLES.clip_exe_history:
                 executable_path = max(
-                    VARIABLES.clip_exe_history, key=VARIABLES.clip_exe_history.count,
+                    VARIABLES.clip_exe_history,
+                    key=VARIABLES.clip_exe_history.count,
                 )
             else:
                 executable_path = get_executable_path(get_active_window_pid())
@@ -1509,7 +1574,8 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     clip_name = gen_clip_base_name(mode)
     ext = old_file_path.split('.')[-1]
     filename_template = obs.obs_data_get_string(
-        VARIABLES.script_settings, PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP,
+        VARIABLES.script_settings,
+        PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP,
     )
     filename = gen_filename(clip_name, filename_template) + f'.{ext}'
 
@@ -1527,7 +1593,8 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
 
     if obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.CLIPS_CREATE_LINKS_PROP):
         links_folder = obs.obs_data_get_string(
-            VARIABLES.script_settings, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP,
+            VARIABLES.script_settings,
+            PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP,
         )
         create_hard_link(new_path, links_folder)
     return clip_name, new_path
@@ -1565,7 +1632,8 @@ def on_buffer_recording_started_callback(event):
 
     # Start replay buffer auto restart loop.
     if restart_loop_time := obs.obs_data_get_int(
-        VARIABLES.script_settings, PropertiesNames.RESTART_BUFFER_LOOP_PROP,
+        VARIABLES.script_settings,
+        PropertiesNames.RESTART_BUFFER_LOOP_PROP,
     ):
         obs.timer_add(restart_replay_buffering_callback, restart_loop_time * 1000)
 
@@ -1588,7 +1656,8 @@ def on_buffer_save_callback(event):
         return
 
     path_display_type = obs.obs_data_get_int(
-        VARIABLES.script_settings, PropertiesNames.POPUP_PATH_DISPLAY_MODE_PROP,
+        VARIABLES.script_settings,
+        PropertiesNames.POPUP_PATH_DISPLAY_MODE_PROP,
     )
     path_display_type = PopupPathDisplayModes(path_display_type)
 
@@ -1724,14 +1793,20 @@ def script_defaults(s):
     _print('Loading default values...')
     obs.obs_data_set_default_string(s, PropertiesNames.CLIPS_BASE_PATH_PROP, str(get_base_path()))
     obs.obs_data_set_default_int(
-        s, PropertiesNames.CLIPS_NAMING_MODE_PROP, ClipNamingModes.CURRENT_PROCESS.value,
+        s,
+        PropertiesNames.CLIPS_NAMING_MODE_PROP,
+        ClipNamingModes.CURRENT_PROCESS.value,
     )
     obs.obs_data_set_default_string(
-        s, PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP, CONSTANTS.DEFAULT_FILENAME_FORMAT,
+        s,
+        PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP,
+        CONSTANTS.DEFAULT_FILENAME_FORMAT,
     )
     obs.obs_data_set_default_bool(s, PropertiesNames.CLIPS_SAVE_TO_FOLDER_PROP, True)
     obs.obs_data_set_default_string(
-        s, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP, str(get_base_path() / '_links'),
+        s,
+        PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP,
+        str(get_base_path() / '_links'),
     )
 
     # obs.obs_data_set_default_int(s, PropertiesNames.VIDEOS_NAMING_MODE_PROP, VideoNamingModes.MOST_RECORDED_PROCESS.value)
@@ -1743,7 +1818,9 @@ def script_defaults(s):
     obs.obs_data_set_default_bool(s, PropertiesNames.POPUP_CLIPS_ON_SUCCESS_PROP, False)
     obs.obs_data_set_default_bool(s, PropertiesNames.POPUP_CLIPS_ON_FAILURE_PROP, False)
     obs.obs_data_set_default_int(
-        s, PropertiesNames.POPUP_PATH_DISPLAY_MODE_PROP, PopupPathDisplayModes.FULL_PATH.value,
+        s,
+        PropertiesNames.POPUP_PATH_DISPLAY_MODE_PROP,
+        PopupPathDisplayModes.FULL_PATH.value,
     )
 
     obs.obs_data_set_default_int(s, PropertiesNames.RESTART_BUFFER_LOOP_PROP, 3600)

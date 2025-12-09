@@ -12,19 +12,17 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-from .globals import PropertiesNames, CONSTANTS, VARIABLES
+from .globals import CONSTANTS, VARIABLES, ConfigTypes, PropertiesNames
 from .exceptions import *
 from .obs_related import get_base_path
 from .clipname_gen import gen_filename
-from .script_helpers import load_aliases
-from .globals import ConfigTypes
-from .script_helpers import get_obs_config
+from .script_helpers import load_aliases, get_obs_config
 
 import os
 import json
+import subprocess
 import webbrowser
 from pathlib import Path
-import subprocess
 
 import obspython as obs
 
@@ -43,7 +41,8 @@ def update_aliases_callback(p, prop, data):
     Checks the list of aliases and updates aliases menu (shows / hides error texts).
     """
     python_exe = os.path.join(
-        get_obs_config('Python', 'Path64bit', str, ConfigTypes.USER), 'pythonw.exe',
+        get_obs_config('Python', 'Path64bit', str, ConfigTypes.USER),
+        'pythonw.exe',
     )
 
     settings_json: dict = json.loads(obs.obs_data_get_json(data))
@@ -59,18 +58,18 @@ def update_aliases_callback(p, prop, data):
 
         if isinstance(e, AliasInvalidCharacters):
             error_text = (
-                f'Invalid path or clip name value.\n'
-                f'Clip name cannot contain < < / \\ | * ? : " % characters.\n'
-                f'Path cannot contain < > | * ? " % characters.'
+                'Invalid path or clip name value.\n'
+                'Clip name cannot contain < < / \\ | * ? : " % characters.\n'
+                'Path cannot contain < > | * ? " % characters.'
             )
         elif isinstance(e, AliasInvalidFormat):
             error_text = (
-                f'Invalid alias format.\n'
-                f'Required format: DISK:\\path\\to\\folder\\or\\executable > NameYouWantToSee.\n'
-                f'Example: C:\\Program Files\\Minecraft > Minecraft'
+                'Invalid alias format.\n'
+                'Required format: DISK:\\path\\to\\folder\\or\\executable > NameYouWantToSee.\n'
+                'Example: C:\\Program Files\\Minecraft > Minecraft'
             )
         elif isinstance(e, AliasPathAlreadyExists):
-            error_text = f'This path has already been added to the list.'
+            error_text = 'This path has already been added to the list.'
         else:
             error_text = 'Unknown error'
 
@@ -97,7 +96,9 @@ def check_filename_template_callback(p, prop, data):
     error_text = obs.obs_properties_get(p, PropertiesNames.CLIPS_FILENAME_TEMPLATE_ERR_TEXT)
 
     try:
-        gen_filename('clipname', obs.obs_data_get_string(data, PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP))
+        gen_filename(
+            'clipname', obs.obs_data_get_string(data, PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP),
+        )
         obs.obs_property_set_visible(error_text, False)
     except:
         obs.obs_property_set_visible(error_text, True)
@@ -106,7 +107,9 @@ def check_filename_template_callback(p, prop, data):
 
 def update_links_path_prop_visibility(p, prop, data):
     path_prop = obs.obs_properties_get(p, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP)
-    path_warn_prop = obs.obs_properties_get(p, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_WARNING_TEXT)
+    path_warn_prop = obs.obs_properties_get(
+        p, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_WARNING_TEXT,
+    )
     is_visible = obs.obs_data_get_bool(data, obs.obs_property_name(prop))
 
     obs.obs_property_set_visible(path_prop, is_visible)
@@ -129,7 +132,9 @@ def check_clips_links_folder_path_callback(p, prop, data):
     else:
         obs.obs_property_text_set_info_type(warn_text, obs.OBS_TEXT_INFO_ERROR)
         obs.obs_data_set_string(
-            data, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP, str(obs_records_path / '_links'),
+            data,
+            PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP,
+            str(obs_records_path / '_links'),
         )
     return True
 
@@ -139,8 +144,12 @@ def update_notifications_menu_callback(p, prop, data):
     Updates notifications settings menu.
     If notification is enabled, shows path widget.
     """
-    success_path_prop = obs.obs_properties_get(p, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PATH_PROP)
-    failure_path_prop = obs.obs_properties_get(p, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PATH_PROP)
+    success_path_prop = obs.obs_properties_get(
+        p, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PATH_PROP,
+    )
+    failure_path_prop = obs.obs_properties_get(
+        p, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PATH_PROP,
+    )
 
     on_success = obs.obs_data_get_bool(data, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PROP)
     on_failure = obs.obs_data_get_bool(data, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PROP)
@@ -173,7 +182,9 @@ def import_aliases_from_json_callback(*args):
     """
     Imports aliases from JSON file.
     """
-    path = obs.obs_data_get_string(VARIABLES.script_settings, PropertiesNames.ALIASES_IMPORT_PATH_PROP)
+    path = obs.obs_data_get_string(
+        VARIABLES.script_settings, PropertiesNames.ALIASES_IMPORT_PATH_PROP,
+    )
     if not path or not os.path.exists(path) or not os.path.isfile(path):
         return False
 
@@ -198,7 +209,9 @@ def export_aliases_to_json_callback(*args):
     """
     Exports aliases to JSON file.
     """
-    path = obs.obs_data_get_string(VARIABLES.script_settings, PropertiesNames.ALIASES_EXPORT_PATH_PROP)
+    path = obs.obs_data_get_string(
+        VARIABLES.script_settings, PropertiesNames.ALIASES_EXPORT_PATH_PROP,
+    )
     if not path or not os.path.exists(path) or not os.path.isdir(path):
         return False
 

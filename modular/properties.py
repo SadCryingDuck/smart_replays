@@ -12,7 +12,7 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-from .globals import PropertiesNames, VARIABLES, ClipNamingModes, PopupPathDisplayModes
+from .globals import VARIABLES, ClipNamingModes, PropertiesNames, PopupPathDisplayModes
 from .obs_related import get_base_path
 from .properties_callbacks import (
     open_github_callback,
@@ -313,19 +313,25 @@ def setup_notifications_settings(group_obj):
 
     obs.obs_property_set_visible(
         success_path_prop,
-        obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PROP),
+        obs.obs_data_get_bool(
+            VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PROP,
+        ),
     )
     obs.obs_property_set_visible(
         failure_path_prop,
-        obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PROP),
+        obs.obs_data_get_bool(
+            VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PROP,
+        ),
     )
 
     # ----- Callbacks ------
     obs.obs_property_set_modified_callback(
-        notification_success_prop, update_notifications_menu_callback,
+        notification_success_prop,
+        update_notifications_menu_callback,
     )
     obs.obs_property_set_modified_callback(
-        notification_failure_prop, update_notifications_menu_callback,
+        notification_failure_prop,
+        update_notifications_menu_callback,
     )
 
 
@@ -488,7 +494,11 @@ def script_properties():
     other_gr = obs.obs_properties_create()
 
     obs.obs_properties_add_group(
-        p, PropertiesNames.CLIPS_PATH_SETTINGS_GROUP, 'Clip path settings', obs.OBS_GROUP_NORMAL, clip_path_gr,
+        p,
+        PropertiesNames.CLIPS_PATH_SETTINGS_GROUP,
+        'Clip path settings',
+        obs.OBS_GROUP_NORMAL,
+        clip_path_gr,
     )
     # obs.obs_properties_add_group(p, PropertiesNames.VIDEOS_PATH_SETTINGS_GROUP, "Video path settings", obs.OBS_GROUP_NORMAL, video_path_gr)   # todo: for future updates
     obs.obs_properties_add_group(
@@ -506,9 +516,15 @@ def script_properties():
         popup_gr,
     )
     obs.obs_properties_add_group(
-        p, PropertiesNames.ALIASES_SETTINGS_GROUP, 'Aliases', obs.OBS_GROUP_NORMAL, aliases_gr,
+        p,
+        PropertiesNames.ALIASES_SETTINGS_GROUP,
+        'Aliases',
+        obs.OBS_GROUP_NORMAL,
+        aliases_gr,
     )
-    obs.obs_properties_add_group(p, PropertiesNames.OTHER_SETTINGS_GROUP, 'Other', obs.OBS_GROUP_NORMAL, other_gr)
+    obs.obs_properties_add_group(
+        p, PropertiesNames.OTHER_SETTINGS_GROUP, 'Other', obs.OBS_GROUP_NORMAL, other_gr,
+    )
 
     # ------ Setup properties ------
     setup_clip_paths_settings(clip_path_gr)

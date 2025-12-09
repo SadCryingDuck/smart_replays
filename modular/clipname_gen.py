@@ -13,7 +13,7 @@
 #  GNU Affero General Public License for more details.
 
 from .tech import _print, get_executable_path, get_active_window_pid
-from .globals import PropertiesNames, CONSTANTS, VARIABLES, ClipNamingModes
+from .globals import CONSTANTS, VARIABLES, ClipNamingModes, PropertiesNames
 from .obs_related import get_current_scene_name
 
 import traceback
@@ -57,7 +57,8 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
             )
             if VARIABLES.clip_exe_history:
                 executable_path = max(
-                    VARIABLES.clip_exe_history, key=VARIABLES.clip_exe_history.count,
+                    VARIABLES.clip_exe_history,
+                    key=VARIABLES.clip_exe_history.count,
                 )
             else:
                 executable_path = get_executable_path(get_active_window_pid())

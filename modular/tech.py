@@ -29,7 +29,11 @@ class LASTINPUTINFO(ctypes.Structure):
 
 
 def _print(
-    *values, sep: str | None = None, end: str | None = None, file=None, flush: bool = False,
+    *values,
+    sep: str | None = None,
+    end: str | None = None,
+    file=None,
+    flush: bool = False,
 ):
     str_time = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
     print(f'[{str_time}]', *values, sep=sep, end=end, file=file, flush=flush)

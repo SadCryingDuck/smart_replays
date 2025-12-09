@@ -13,7 +13,7 @@
 #  GNU Affero General Public License for more details.
 
 
-from .globals import PropertiesNames, VARIABLES, ClipNamingModes
+from .globals import VARIABLES, ClipNamingModes, PropertiesNames
 from .save_buffer import save_buffer_with_force_mode
 
 import obspython as obs

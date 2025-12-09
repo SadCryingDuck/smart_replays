@@ -1,8 +1,7 @@
 import sys
 import time
 import tkinter as tk
-from tkinter import font as f
-from tkinter import messagebox
+from tkinter import font as f, messagebox
 
 
 # -------------------- ui.py --------------------
@@ -238,6 +237,7 @@ class NotificationWindow:
 
     def close(self) -> None:
         """Close window with reverse animation."""
+
         def hide_first():
             self._animate_frame(
                 self.first_frame,

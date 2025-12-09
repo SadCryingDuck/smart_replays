@@ -13,7 +13,7 @@
 #  GNU Affero General Public License for more details.
 
 from .tech import _print
-from .globals import PropertiesNames, CONSTANTS, ConfigTypes
+from .globals import CONSTANTS, ConfigTypes, PropertiesNames
 
 import time
 from typing import Any
@@ -106,7 +106,9 @@ def get_base_path(script_settings: Any | None = None) -> Path:
     :return: The base path as a `Path` object.
     """
     if script_settings is not None:
-        script_path = obs.obs_data_get_string(script_settings, PropertiesNames.CLIPS_BASE_PATH_PROP)
+        script_path = obs.obs_data_get_string(
+            script_settings, PropertiesNames.CLIPS_BASE_PATH_PROP,
+        )
         # If PropertiesNames.CLIPS_BASE_PATH_PROP is not saved in the script config, then it has a default value,
         # which is the value from the OBS config.
         if script_path:

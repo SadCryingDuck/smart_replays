@@ -11,12 +11,12 @@
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
-from __future__ import annotations
 
-import sys
-import time
 import tkinter as tk
 from tkinter import font as f
+
+import time
+import sys
 
 
 # This part of the script uses only when it is run as a main program, not imported by OBS.
@@ -24,17 +24,15 @@ from tkinter import font as f
 # You can run this script to show notification:
 # python smart_replays.py <Notification Title> <Notification Text> <Notification Color>
 class ScrollingText:
-    def __init__(
-        self,
-        canvas: tk.Canvas,
-        text,
-        visible_area_width,
-        start_pos,
-        font,
-        delay: int = 10,
-        speed=1,
-        on_finish_callback=None,
-    ):
+    def __init__(self,
+                 canvas: tk.Canvas,
+                 text,
+                 visible_area_width,
+                 start_pos,
+                 font,
+                 delay: int = 10,
+                 speed=1,
+                 on_finish_callback=None):
         """
         Scrolling text widget.
 
@@ -58,15 +56,9 @@ class ScrollingText:
         self.on_finish_callback = on_finish_callback
 
         self.text_width = font.measure(text)
-        self.text_height = font.metrics('ascent') + font.metrics('descent')
-        self.text_id = self.canvas.create_text(
-            0,
-            round(self.text_height / 2),
-            anchor=tk.NW,
-            text=self.text,
-            font=self.font,
-            fill='#ffffff',
-        )
+        self.text_height = font.metrics("ascent") + font.metrics("descent")
+        self.text_id = self.canvas.create_text(0, round(self.text_height / 2),
+                                               anchor=tk.NW, text=self.text, font=self.font, fill="#ffffff")
         self.text_curr_pos = start_pos
 
     def update_scroll(self):
@@ -81,17 +73,20 @@ class ScrollingText:
 
 
 class NotificationWindow:
-    def __init__(self, title: str, message: str, primary_color: str = '#78B900'):
+    def __init__(self,
+                 title: str,
+                 message: str,
+                 primary_color: str = "#78B900"):
         self.title = title
         self.message = message
         self.primary_color = primary_color
-        self.bg_color = '#000000'
+        self.bg_color = "#000000"
 
         self.root = tk.Tk()
         self.root.withdraw()
-        self.window = tk.Toplevel(bg='#000001')
+        self.window = tk.Toplevel(bg="#000001")
         self.window.overrideredirect(True)
-        self.window.attributes('-topmost', True, '-alpha', 0.99, '-transparentcolor', '#000001')
+        self.window.attributes("-topmost", True, "-alpha", 0.99, "-transparentcolor", "#000001")
 
         self.scr_w, self.scr_h = self.window.winfo_screenwidth(), self.window.winfo_screenheight()
         self.wnd_w, self.wnd_h = round(self.scr_w / 6.4), round(self.scr_h / 12)
@@ -100,63 +95,46 @@ class NotificationWindow:
         self.message_font_size = round(self.wnd_h / 8)
         self.second_frame_padding_x = round(self.wnd_w / 40)
         self.message_right_padding = round(self.wnd_w / 40)
-        self.content_frame_padding_x, self.content_frame_padding_y = (
-            round(self.wnd_w / 40),
-            round(self.wnd_h / 12),
-        )
+        self.content_frame_padding_x, self.content_frame_padding_y = (round(self.wnd_w / 40),
+                                                                      round(self.wnd_h / 12))
 
-        self.window.geometry(f'{self.wnd_w}x{self.wnd_h}+{self.wnd_x}+{self.wnd_y}')
+        self.window.geometry(f"{self.wnd_w}x{self.wnd_h}+{self.wnd_x}+{self.wnd_y}")
 
-        self.first_frame = tk.Frame(
-            self.window,
-            bg=self.primary_color,
-            bd=0,
-            width=1,
-            height=self.wnd_h,
-        )
-        self.first_frame.place(x=self.wnd_w - 1, y=0)
+        self.first_frame = tk.Frame(self.window, bg=self.primary_color, bd=0, width=1, height=self.wnd_h)
+        self.first_frame.place(x=self.wnd_w-1, y=0)
 
-        self.second_frame = tk.Frame(
-            self.window,
-            bg=self.bg_color,
-            bd=0,
-            width=1,
-            height=self.wnd_h,
-        )
+        self.second_frame = tk.Frame(self.window, bg=self.bg_color, bd=0, width=1, height=self.wnd_h)
         self.second_frame.pack_propagate(False)
-        self.second_frame.place(x=self.wnd_w - 1, y=0)
+        self.second_frame.place(x=self.wnd_w-1, y=0)
 
         self.content_frame = tk.Frame(self.second_frame, bg=self.bg_color, bd=0, height=self.wnd_h)
-        self.content_frame.pack(
-            fill=tk.X,
-            padx=self.content_frame_padding_x,
-            pady=self.content_frame_padding_y,
-        )
+        self.content_frame.pack(fill=tk.X,
+                                padx=self.content_frame_padding_x,
+                                pady=self.content_frame_padding_y)
 
-        self.title_label = tk.Label(
-            self.content_frame,
-            text=self.title,
-            font=('Bahnschrift', self.title_font_size, 'bold'),
-            bg=self.bg_color,
-            fg=self.primary_color,
-        )
+
+        self.title_label = tk.Label(self.content_frame,
+                                    text=self.title,
+                                    font=("Bahnschrift", self.title_font_size, "bold"),
+                                    bg=self.bg_color,
+                                    fg=self.primary_color)
         self.title_label.pack(anchor=tk.W)
+
 
         self.canvas = tk.Canvas(self.content_frame, bg=self.bg_color, highlightthickness=0)
         self.canvas.pack()
         self.canvas.update()
 
-        font = f.Font(family='Cascadia Mono', size=self.message_font_size)
-        self.message = ScrollingText(
-            canvas=self.canvas,
-            text=message,
-            visible_area_width=self.wnd_w - self.second_frame_padding_x,
-            start_pos=self.second_frame_padding_x + self.message_right_padding,
-            font=font,
-            delay=10,
-            speed=2,
-            on_finish_callback=self.on_text_anim_finished_callback,
-        )
+        font = f.Font(family="Cascadia Mono", size=self.message_font_size)
+        self.message = ScrollingText(canvas=self.canvas,
+                                     text=message,
+                                     visible_area_width=self.wnd_w - self.second_frame_padding_x,
+                                     start_pos=self.second_frame_padding_x + self.message_right_padding,
+                                     font=font,
+                                     delay=10,
+                                     speed=2,
+                                     on_finish_callback=self.on_text_anim_finished_callback)
+
 
     def animate_frame(self, frame: tk.Frame, target_w, delay: float = 0.00001, speed: int = 3):
         init_w, init_h = frame.winfo_width(), self.wnd_h
@@ -164,7 +142,7 @@ class NotificationWindow:
 
         for curr_w in range(init_w, target_w, speed):
             frame.config(width=curr_w)
-            frame.place(x=self.wnd_w - curr_w, y=0)
+            frame.place(x=self.wnd_w-curr_w, y=0)
             frame.update()
             time.sleep(delay)
 
@@ -194,8 +172,8 @@ class NotificationWindow:
 
 
 if __name__ == '__main__':
-    t = sys.argv[1] if len(sys.argv) > 1 else 'Test Title'
-    m = sys.argv[2] if len(sys.argv) > 2 else 'Test Message'
-    color = sys.argv[3] if len(sys.argv) > 3 else '#76B900'
+    t = sys.argv[1] if len(sys.argv) > 1 else "Test Title"
+    m = sys.argv[2] if len(sys.argv) > 2 else "Test Message"
+    color = sys.argv[3] if len(sys.argv) > 3 else "#76B900"
     NotificationWindow(t, m, color).show()
     sys.exit(0)

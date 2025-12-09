@@ -11,37 +11,24 @@
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
-from __future__ import annotations
 
-import obspython as obs
 
 from .globals import PN, VARIABLES, ClipNamingModes
 from .save_buffer import save_buffer_with_force_mode
 
+import obspython as obs
+
 
 def load_hotkeys():
     keys = (
-        (
-            PN.HK_SAVE_BUFFER_MODE_1,
-            '[Smart Replays] Save buffer (active exe)',
-            lambda pressed: save_buffer_with_force_mode(ClipNamingModes.CURRENT_PROCESS)
-            if pressed
-            else None,
-        ),
-        (
-            PN.HK_SAVE_BUFFER_MODE_2,
-            '[Smart Replays] Save buffer (most recorded exe)',
-            lambda pressed: save_buffer_with_force_mode(ClipNamingModes.MOST_RECORDED_PROCESS)
-            if pressed
-            else None,
-        ),
-        (
-            PN.HK_SAVE_BUFFER_MODE_3,
-            '[Smart Replays] Save buffer (active scene)',
-            lambda pressed: save_buffer_with_force_mode(ClipNamingModes.CURRENT_SCENE)
-            if pressed
-            else None,
-        ),
+        (PN.HK_SAVE_BUFFER_MODE_1, "[Smart Replays] Save buffer (active exe)",
+         lambda pressed: save_buffer_with_force_mode(ClipNamingModes.CURRENT_PROCESS) if pressed else None),
+
+        (PN.HK_SAVE_BUFFER_MODE_2, "[Smart Replays] Save buffer (most recorded exe)",
+         lambda pressed: save_buffer_with_force_mode(ClipNamingModes.MOST_RECORDED_PROCESS) if pressed else None),
+
+        (PN.HK_SAVE_BUFFER_MODE_3, "[Smart Replays] Save buffer (active scene)",
+         lambda pressed: save_buffer_with_force_mode(ClipNamingModes.CURRENT_SCENE) if pressed else None)
     )
 
     for key_name, key_desc, key_callback in keys:

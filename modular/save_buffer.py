@@ -11,30 +11,26 @@
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
-from __future__ import annotations
 
-import os
-from pathlib import Path
-
-import obspython as obs
-
+from .globals import VARIABLES, CONSTANTS, PN, ClipNamingModes
+from .obs_related import get_last_replay_file_name, get_base_path
+from .clipname_gen import gen_clip_base_name, gen_filename, ensure_unique_filename
 from .tech import _print, create_hard_link
-from .globals import PN, CONSTANTS, VARIABLES, ClipNamingModes
-from .obs_related import get_base_path, get_last_replay_file_name
-from .clipname_gen import gen_filename, gen_clip_base_name, ensure_unique_filename
+
+from pathlib import Path
+import obspython as obs
+import os
 
 
 def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     old_file_path = get_last_replay_file_name()
-    _print(f'Old clip file path: {old_file_path}')
+    _print(f"Old clip file path: {old_file_path}")
 
     clip_name = gen_clip_base_name(mode)
-    ext = old_file_path.split('.')[-1]
-    filename_template = obs.obs_data_get_string(
-        VARIABLES.script_settings,
-        PN.PROP_CLIPS_FILENAME_TEMPLATE,
-    )
-    filename = gen_filename(clip_name, filename_template) + f'.{ext}'
+    ext = old_file_path.split(".")[-1]
+    filename_template = obs.obs_data_get_string(VARIABLES.script_settings,
+                                                PN.PROP_CLIPS_FILENAME_TEMPLATE)
+    filename = gen_filename(clip_name, filename_template) + f".{ext}"
 
     new_folder = Path(get_base_path(script_settings=VARIABLES.script_settings))
     if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_CLIPS_SAVE_TO_FOLDER):
@@ -43,16 +39,13 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     os.makedirs(str(new_folder), exist_ok=True)
     new_path = new_folder / filename
     new_path = ensure_unique_filename(new_path)
-    _print(f'New clip file path: {new_path}')
+    _print(f"New clip file path: {new_path}")
 
     os.rename(old_file_path, str(new_path))
-    _print('Clip file successfully moved.')
+    _print("Clip file successfully moved.")
 
     if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_CLIPS_CREATE_LINKS):
-        links_folder = obs.obs_data_get_string(
-            VARIABLES.script_settings,
-            PN.PROP_CLIPS_LINKS_FOLDER_PATH,
-        )
+        links_folder = obs.obs_data_get_string(VARIABLES.script_settings, PN.PROP_CLIPS_LINKS_FOLDER_PATH)
         create_hard_link(new_path, links_folder)
     return clip_name, new_path
 

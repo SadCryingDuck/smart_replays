@@ -11,17 +11,16 @@
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
-from __future__ import annotations
 
-import traceback
-from pathlib import Path
-from datetime import datetime
+from .globals import VARIABLES, CONSTANTS, PN, ClipNamingModes
+
+from .tech import get_active_window_pid, get_executable_path, _print
+from .obs_related import get_current_scene_name
 
 import obspython as obs
-
-from .tech import _print, get_executable_path, get_active_window_pid
-from .globals import PN, CONSTANTS, VARIABLES, ClipNamingModes
-from .obs_related import get_current_scene_name
+from pathlib import Path
+from datetime import datetime
+import traceback
 
 
 def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
@@ -30,37 +29,26 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
     It does NOT generate a new path for the clip or filename, only its base name.
 
     :param mode: Clip naming mode. If None, the mode is fetched from the script config.
-                 If a value is provided, it overrides the config value.
-    :return: The clip base name based on the selected naming mode.
+                 If a value is provided, it overrides the configs value.
+    :return: The base name of the clip based on the selected naming mode.
     """
-    _print('Generating clip base name...')
-    mode = (
-        obs.obs_data_get_int(VARIABLES.script_settings, PN.PROP_CLIPS_NAMING_MODE)
-        if mode is None
-        else mode
-    )
+    _print("Generating clip base name...")
+    mode = obs.obs_data_get_int(VARIABLES.script_settings, PN.PROP_CLIPS_NAMING_MODE) if mode is None else mode
     mode = ClipNamingModes(mode)
 
     if mode in [ClipNamingModes.CURRENT_PROCESS, ClipNamingModes.MOST_RECORDED_PROCESS]:
         if mode is ClipNamingModes.CURRENT_PROCESS:
-            _print(
-                'Clip file name depends on the name of an active app (.exe file name) at the moment of clip saving.',
-            )
+            _print("Clip file name depends on the name of an active app (.exe file name) at the moment of clip saving.")
             pid = get_active_window_pid()
             executable_path = get_executable_path(pid)
-            _print(f'Current active window process ID: {pid}')
-            _print(f'Current active window executable: {executable_path}')
+            _print(f"Current active window process ID: {pid}")
+            _print(f"Current active window executable: {executable_path}")
 
         else:
-            _print(
-                'Clip file name depends on the name of an app (.exe file name) '
-                'that was active most of the time during the clip recording.',
-            )
+            _print("Clip file name depends on the name of an app (.exe file name) "
+                   "that was active most of the time during the clip recording.")
             if VARIABLES.clip_exe_history:
-                executable_path = max(
-                    VARIABLES.clip_exe_history,
-                    key=VARIABLES.clip_exe_history.count,
-                )
+                executable_path = max(VARIABLES.clip_exe_history, key=VARIABLES.clip_exe_history.count)
             else:
                 executable_path = get_executable_path(get_active_window_pid())
 
@@ -68,14 +56,14 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
         if alias := get_alias(executable_path, VARIABLES.aliases):
             _print(f'Alias found: {alias}.')
             return alias
-        _print(
-            f"{executable_path} or its parents weren't found in aliases list. "
-            f'Assigning the name of the executable: {executable_path.stem}',
-        )
-        return executable_path.stem
+        else:
+            _print(f"{executable_path} or its parents weren't found in aliases list. "
+                   f"Assigning the name of the executable: {executable_path.stem}")
+            return executable_path.stem
 
-    _print('Clip filename depends on the name of the current scene name.')
-    return get_current_scene_name()
+    else:
+        _print("Clip filename depends on the name of the current scene name.")
+        return get_current_scene_name()
 
 
 def get_alias(executable_path: str | Path, aliases_dict: dict[Path, str]) -> str | None:
@@ -99,11 +87,12 @@ def get_alias(executable_path: str | Path, aliases_dict: dict[Path, str]) -> str
             return aliases_dict[parent]
 
 
+
 def gen_filename(base_name: str, template: str, dt: datetime | None = None) -> str:
     """
     Generates a file name based on the template.
-    If the template is invalid or formatting has failed raises ValueError.
-    If the generated name contains prohibited characters raises SyntaxError.
+    If the template is invalid or formatting fails, raises ValueError.
+    If the generated name contains prohibited characters, raises SyntaxError.
 
     :param base_name: Base name for the file.
     :param template: Template for generating the file name.
@@ -114,12 +103,12 @@ def gen_filename(base_name: str, template: str, dt: datetime | None = None) -> s
         raise ValueError
 
     dt = dt or datetime.now()
-    filename = template.replace('%NAME', base_name)
+    filename = template.replace("%NAME", base_name)
 
     try:
         filename = dt.strftime(filename)
     except Exception as e:
-        _print(f'An error occurred while generating the file name using the template {template}.')
+        _print(f"An error occurred while generating the file name using the template {template}.")
         _print(traceback.format_exc())
         raise ValueError from e
 
@@ -140,7 +129,7 @@ def ensure_unique_filename(file_path: str | Path) -> Path:
     counter = 1
 
     while file_path.exists():
-        file_path = parent / f'{stem} ({counter}){suffix}'
+        file_path = parent / f"{stem} ({counter}){suffix}"
         counter += 1
 
     return file_path

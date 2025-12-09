@@ -11,32 +11,25 @@
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
-from __future__ import annotations
-
-import os
-import ctypes
-import winsound
-from ctypes import wintypes
-from pathlib import Path
-from datetime import datetime
-from contextlib import suppress
 
 from .globals import user32
 
+import ctypes
+from ctypes import wintypes
+import winsound
+from pathlib import Path
+from datetime import datetime
+from contextlib import suppress
+import os
 
 class LASTINPUTINFO(ctypes.Structure):
-    _fields_ = [('cbSize', wintypes.UINT), ('dwTime', wintypes.DWORD)]
+    _fields_ = [("cbSize", wintypes.UINT),
+                ("dwTime", wintypes.DWORD)]
 
 
-def _print(
-    *values,
-    sep: str | None = None,
-    end: str | None = None,
-    file=None,
-    flush: bool = False,
-):
-    str_time = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
-    print(f'[{str_time}]', *values, sep=sep, end=end, file=file, flush=flush)
+def _print(*values, sep: str | None = None, end: str | None = None, file=None, flush: bool = False):
+    str_time = datetime.now().strftime(f"%d.%m.%Y %H:%M:%S")
+    print(f"[{str_time}]", *values, sep=sep, end=end, file=file, flush=flush)
 
 
 def get_active_window_pid() -> int | None:
@@ -60,14 +53,15 @@ def get_executable_path(pid: int) -> Path:
     # PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
 
     if not process_handle:
-        raise OSError(f'Process {pid} does not exist.')
+        raise OSError(f"Process {pid} does not exist.")
 
     filename_buffer = ctypes.create_unicode_buffer(260)  # Windows path is 260 characters max.
     result = ctypes.windll.psapi.GetModuleFileNameExW(process_handle, None, filename_buffer, 260)
     ctypes.windll.kernel32.CloseHandle(process_handle)
     if result:
         return Path(filename_buffer.value)
-    raise RuntimeError(f'Cannot get executable path for process {pid}.')
+    else:
+        raise RuntimeError(f"Cannot get executable path for process {pid}.")
 
 
 def play_sound(path: str | Path):

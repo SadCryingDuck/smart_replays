@@ -11,20 +11,19 @@
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
-from __future__ import annotations
 
-import os
-import json
-import webbrowser
-from pathlib import Path
-
-import obspython as obs
-
-from .globals import PN, CONSTANTS, VARIABLES
 from .exceptions import *
-from .obs_related import get_base_path
+from .globals import VARIABLES, CONSTANTS, PN
 from .clipname_gen import gen_filename
+from .obs_related import get_base_path
 from .script_helpers import load_aliases
+
+from datetime import datetime
+from pathlib import Path
+import obspython as obs
+import webbrowser
+import json
+import os
 
 
 # All UI callbacks have the same parameters:
@@ -33,7 +32,7 @@ from .script_helpers import load_aliases
 # data: script settings
 # Usually I don't use `data`, cuz we have script_settings global variable.
 def open_github_callback(*args):
-    webbrowser.open('https://github.com/qvvonk/smart_replays', 1)
+    webbrowser.open("https://github.com/qvvonk/smart_replays", 1)
 
 
 def update_aliases_callback(p, prop, data):
@@ -97,7 +96,7 @@ def check_filename_template_callback(p, prop, data):
     error_text = obs.obs_properties_get(p, PN.TXT_CLIPS_FILENAME_TEMPLATE_ERR)
 
     try:
-        gen_filename('clipname', obs.obs_data_get_string(data, PN.PROP_CLIPS_FILENAME_TEMPLATE))
+        gen_filename("clipname", obs.obs_data_get_string(data, PN.PROP_CLIPS_FILENAME_TEMPLATE))
         obs.obs_property_set_visible(error_text, False)
     except:
         obs.obs_property_set_visible(error_text, True)
@@ -128,11 +127,9 @@ def check_clips_links_folder_path_callback(p, prop, data):
         obs.obs_property_text_set_info_type(warn_text, obs.OBS_TEXT_INFO_WARNING)
     else:
         obs.obs_property_text_set_info_type(warn_text, obs.OBS_TEXT_INFO_ERROR)
-        obs.obs_data_set_string(
-            data,
-            PN.PROP_CLIPS_LINKS_FOLDER_PATH,
-            str(obs_records_path / '_links'),
-        )
+        obs.obs_data_set_string(data,
+                                PN.PROP_CLIPS_LINKS_FOLDER_PATH,
+                                str(obs_records_path / '_links'))
     return True
 
 
@@ -167,7 +164,7 @@ def check_base_path_callback(p, prop, data):
     else:
         obs.obs_property_text_set_info_type(warn_text, obs.OBS_TEXT_INFO_ERROR)
         obs.obs_data_set_string(data, PN.PROP_CLIPS_BASE_PATH, str(obs_records_path))
-        print('WARN')
+        print("WARN")
     return True
 
 
@@ -179,7 +176,7 @@ def import_aliases_from_json_callback(*args):
     if not path or not os.path.exists(path) or not os.path.isfile(path):
         return False
 
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         data = f.read()
 
     try:
@@ -207,5 +204,5 @@ def export_aliases_to_json_callback(*args):
     aliases_dict = json.loads(obs.obs_data_get_last_json(VARIABLES.script_settings))
     aliases_dict = aliases_dict.get(PN.PROP_ALIASES_LIST) or CONSTANTS.DEFAULT_ALIASES
 
-    with open(os.path.join(path, 'obs_smart_replays_aliases.json'), 'w', encoding='utf-8') as f:
+    with open(os.path.join(path, "obs_smart_replays_aliases.json"), "w", encoding="utf-8") as f:
         f.write(json.dumps(aliases_dict, ensure_ascii=False))

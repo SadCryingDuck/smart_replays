@@ -30,12 +30,12 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     clip_name = gen_clip_base_name(mode)
     ext = old_file_path.split('.')[-1]
     filename_template = obs.obs_data_get_string(
-        VARIABLES.script_settings, PropertiesNames.PROP_CLIPS_FILENAME_TEMPLATE,
+        VARIABLES.script_settings, PropertiesNames.CLIPS_FILENAME_TEMPLATE_PROP,
     )
     filename = gen_filename(clip_name, filename_template) + f'.{ext}'
 
     new_folder = Path(get_base_path(script_settings=VARIABLES.script_settings))
-    if obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.PROP_CLIPS_SAVE_TO_FOLDER):
+    if obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.CLIPS_SAVE_TO_FOLDER_PROP):
         new_folder = new_folder / clip_name
 
     os.makedirs(str(new_folder), exist_ok=True)
@@ -46,9 +46,9 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     os.rename(old_file_path, str(new_path))
     _print('Clip file successfully moved.')
 
-    if obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.PROP_CLIPS_CREATE_LINKS):
+    if obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.CLIPS_CREATE_LINKS_PROP):
         links_folder = obs.obs_data_get_string(
-            VARIABLES.script_settings, PropertiesNames.PROP_CLIPS_LINKS_FOLDER_PATH,
+            VARIABLES.script_settings, PropertiesNames.CLIPS_LINKS_FOLDER_PATH_PROP,
         )
         create_hard_link(new_path, links_folder)
     return clip_name, new_path

@@ -899,7 +899,7 @@ def script_properties():
     obs.obs_properties_add_group(
         p, PropertiesNames.GR_CLIPS_PATH_SETTINGS, 'Clip path settings', obs.OBS_GROUP_NORMAL, clip_path_gr,
     )
-    # obs.obs_properties_add_group(p, PropertiesNames.GR_VIDEOS_PATH_SETTINGS, "Video path settings", obs.OBS_GROUP_NORMAL, video_path_gr)   # todo: for future updates
+    # obs.obs_properties_add_group(p, PropertiesNames.VIDEOS_PATH_SETTINGS_GROUP, "Video path settings", obs.OBS_GROUP_NORMAL, video_path_gr)   # todo: for future updates
     obs.obs_properties_add_group(
         p,
         PropertiesNames.GR_SOUND_NOTIFICATION_SETTINGS,
@@ -1279,7 +1279,7 @@ def get_base_path(script_settings: Any | None = None) -> Path:
     """
     if script_settings is not None:
         script_path = obs.obs_data_get_string(script_settings, PropertiesNames.PROP_CLIPS_BASE_PATH)
-        # If PropertiesNames.PROP_CLIPS_BASE_PATH is not saved in the script config, then it has a default value,
+        # If PropertiesNames.CLIPS_BASE_PATH_PROP is not saved in the script config, then it has a default value,
         # which is the value from the OBS config.
         if script_path:
             return Path(script_path)
@@ -1750,9 +1750,9 @@ def script_defaults(s):
         s, PropertiesNames.PROP_CLIPS_LINKS_FOLDER_PATH, str(get_base_path() / '_links'),
     )
 
-    # obs.obs_data_set_default_int(s, PropertiesNames.PROP_VIDEOS_NAMING_MODE, VideoNamingModes.MOST_RECORDED_PROCESS.value)
-    # obs.obs_data_set_default_string(s, PropertiesNames.PROP_VIDEOS_FILENAME_FORMAT, CONSTANTS.DEFAULT_FILENAME_FORMAT)
-    # obs.obs_data_set_default_bool(s, PropertiesNames.PROP_VIDEOS_SAVE_TO_FOLDER, True)
+    # obs.obs_data_set_default_int(s, PropertiesNames.VIDEOS_NAMING_MODE_PROP, VideoNamingModes.MOST_RECORDED_PROCESS.value)
+    # obs.obs_data_set_default_string(s, PropertiesNames.VIDEOS_FILENAME_FORMAT_PROP, CONSTANTS.DEFAULT_FILENAME_FORMAT)
+    # obs.obs_data_set_default_bool(s, PropertiesNames.VIDEOS_SAVE_TO_FOLDER_PROP, True)
 
     obs.obs_data_set_default_bool(s, PropertiesNames.PROP_NOTIFY_CLIPS_ON_SUCCESS, False)
     obs.obs_data_set_default_bool(s, PropertiesNames.PROP_NOTIFY_CLIPS_ON_FAILURE, False)

@@ -29,10 +29,10 @@ def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayMo
     Plays and shows success / failure notification if it's enabled in notifications settings.
     """
     sound_notifications = obs.obs_data_get_bool(
-        VARIABLES.script_settings, PropertiesNames.GR_SOUND_NOTIFICATION_SETTINGS,
+        VARIABLES.script_settings, PropertiesNames.SOUND_NOTIFICATION_SETTINGS_GROUP,
     )
     popup_notifications = obs.obs_data_get_bool(
-        VARIABLES.script_settings, PropertiesNames.GR_POPUP_NOTIFICATION_SETTINGS,
+        VARIABLES.script_settings, PropertiesNames.POPUP_NOTIFICATION_SETTINGS_GROUP,
     )
     python_exe = os.path.join(
         get_obs_config('Python', 'Path64bit', str, ConfigTypes.APP), 'pythonw.exe',
@@ -47,28 +47,28 @@ def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayMo
 
     if success:
         if sound_notifications and obs.obs_data_get_bool(
-            VARIABLES.script_settings, PropertiesNames.PROP_NOTIFY_CLIPS_ON_SUCCESS,
+            VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PROP,
         ):
             path = obs.obs_data_get_string(
-                VARIABLES.script_settings, PropertiesNames.PROP_NOTIFY_CLIPS_ON_SUCCESS_PATH,
+                VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_SUCCESS_PATH_PROP,
             )
             play_sound(path)
 
         if popup_notifications and obs.obs_data_get_bool(
-            VARIABLES.script_settings, PropertiesNames.PROP_POPUP_CLIPS_ON_SUCCESS,
+            VARIABLES.script_settings, PropertiesNames.POPUP_CLIPS_ON_SUCCESS_PROP,
         ):
             subprocess.Popen([python_exe, __file__, 'Clip saved', f'Clip saved to {clip_path}'])
     else:
         if sound_notifications and obs.obs_data_get_bool(
-            VARIABLES.script_settings, PropertiesNames.PROP_NOTIFY_CLIPS_ON_FAILURE,
+            VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PROP,
         ):
             path = obs.obs_data_get_string(
-                VARIABLES.script_settings, PropertiesNames.PROP_NOTIFY_CLIPS_ON_FAILURE_PATH,
+                VARIABLES.script_settings, PropertiesNames.NOTIFY_CLIPS_ON_FAILURE_PATH_PROP,
             )
             play_sound(path)
 
         if popup_notifications and obs.obs_data_get_bool(
-            VARIABLES.script_settings, PropertiesNames.PROP_POPUP_CLIPS_ON_FAILURE,
+            VARIABLES.script_settings, PropertiesNames.POPUP_CLIPS_ON_FAILURE_PROP,
         ):
             subprocess.Popen(
                 [python_exe, __file__, 'Clip not saved', 'More in the logs.', '#C00000'],
@@ -85,7 +85,7 @@ def load_aliases(script_settings_dict: dict):
     _print('Loading aliases...')
 
     new_aliases = {}
-    aliases_list = script_settings_dict.get(PropertiesNames.PROP_ALIASES_LIST)
+    aliases_list = script_settings_dict.get(PropertiesNames.ALIASES_LIST_PROP)
     if aliases_list is None:
         aliases_list = CONSTANTS.DEFAULT_ALIASES
 

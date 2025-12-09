@@ -28,12 +28,14 @@ class Imports:
         self.imports: import_dict = {}  # {module_name: {module_as_name1, module_as_name2, None, etc.}}
         self.from_imports: from_import_dict = {}  # {module_name: {name: {as_name1, None, etc.}}}
 
-    def add_import(self,
-                   module_name: str,
-                   module_asname: str | None,
-                   name: str | None,
-                   asname: str | None,
-                   verbose: bool = True):
+    def add_import(
+        self,
+        module_name: str,
+        module_asname: str | None,
+        name: str | None,
+        asname: str | None,
+        verbose: bool = True,
+    ):
         if module_name == 'obspython':
             return
 
@@ -48,7 +50,9 @@ class Imports:
                 self.imports[module_name].add(module_asname)
 
             if verbose:
-                logger.info(f'Absolute import of {module_name} as {module_asname or module_name} added.')
+                logger.info(
+                    f'Absolute import of {module_name} as {module_asname or module_name} added.',
+                )
 
         else:  # if it is from import
             if module_name not in self.from_imports:
@@ -59,7 +63,9 @@ class Imports:
                 self.from_imports[module_name][name].add(asname)
 
             if verbose:
-                logger.info(f'Absolute import of {name} as {asname or name} from {module_name} found.')
+                logger.info(
+                    f'Absolute import of {name} as {asname or name} from {module_name} found.',
+                )
 
     def update(self, other: 'Imports') -> None:
         assert isinstance(other, Imports)
@@ -132,21 +138,23 @@ def find_imports(file_name: str) -> tuple[Imports, int]:
     return imports, code_starts_from_line_no
 
 
-FILES_ORDER = ['ui',
-               'globals',
-               'exceptions',
-               'updates_check',
-               'properties',
-               'properties_callbacks',
-               'tech',
-               'obs_related',
-               'script_helpers',
-               'clipname_gen',
-               'save_buffer',
-               'obs_events_callbacks',
-               'other_callbacks',
-               'hotkeys',
-               'obs_script_other']
+FILES_ORDER = [
+    'ui',
+    'globals',
+    'exceptions',
+    'updates_check',
+    'properties',
+    'properties_callbacks',
+    'tech',
+    'obs_related',
+    'script_helpers',
+    'clipname_gen',
+    'save_buffer',
+    'obs_events_callbacks',
+    'other_callbacks',
+    'hotkeys',
+    'obs_script_other',
+]
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
@@ -163,9 +171,9 @@ if __name__ == '__main__':
         file_imports, code_start_line = find_imports(file_path)
 
         with open(file_path, 'r', encoding='utf-8') as f:
-            file_code = ''.join(f.readlines()[code_start_line:]).strip().replace(license_text, "")
+            file_code = ''.join(f.readlines()[code_start_line:]).strip().replace(license_text, '')
 
-        curr_code = f'# {"-"*20} {file} {"-"*20}\n'
+        curr_code = f'# {"-" * 20} {file} {"-" * 20}\n'
         curr_code += file_code + '\n\n\n'
         code_without_imports += curr_code
 
@@ -173,10 +181,8 @@ if __name__ == '__main__':
 
     total_code = license_text
     total_code += str(imports) + '\n\n'
-    total_code += (
-'''if __name__ != '__main__':
-    import obspython as obs'''
-    )
+    total_code += """if __name__ != '__main__':
+    import obspython as obs"""
     total_code += '\n\n\n'
     total_code += code_without_imports.strip()
 

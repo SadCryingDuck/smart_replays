@@ -12,10 +12,12 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
+
 class AliasParsingError(Exception):
     """
     Base exception for all alias related exceptions.
     """
+
     def __init__(self, index):
         """
         :param index: alias index.

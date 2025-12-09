@@ -12,19 +12,22 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-from .globals import PN, CONSTANTS, ConfigTypes
 from .tech import _print
+from .globals import PN, CONSTANTS, ConfigTypes
 
-from pathlib import Path
-from typing import Any
-import obspython as obs
 import time
+from typing import Any
+from pathlib import Path
+
+import obspython as obs
 
 
-def get_obs_config(section_name: str | None = None,
-                   param_name: str | None = None,
-                   value_type: type[str, int, bool, float] = str,
-                   config_type: ConfigTypes = ConfigTypes.PROFILE):
+def get_obs_config(
+    section_name: str | None = None,
+    param_name: str | None = None,
+    value_type: type[str, int, bool, float] = str,
+    config_type: ConfigTypes = ConfigTypes.PROFILE,
+):
     """
     Gets a value from OBS config.
     If the value is not set, it will use the default value. If there is no default value, it will return NULL.
@@ -52,11 +55,11 @@ def get_obs_config(section_name: str | None = None,
         str: obs.config_get_string,
         int: obs.config_get_int,
         bool: obs.config_get_bool,
-        float: obs.config_get_double
+        float: obs.config_get_double,
     }
 
     if value_type not in functions.keys():
-        raise ValueError("Unsupported type.")
+        raise ValueError('Unsupported type.')
 
     return functions[value_type](cfg, section_name, param_name)
 
@@ -89,11 +92,10 @@ def get_replay_buffer_max_time() -> int:
     """
     Returns replay buffer max time from OBS config (in seconds).
     """
-    config_mode = get_obs_config("Output", "Mode")
-    if config_mode == "Simple":
-        return get_obs_config("SimpleOutput", "RecRBTime", int)
-    else:
-        return get_obs_config("AdvOut", "RecRBTime", int)
+    config_mode = get_obs_config('Output', 'Mode')
+    if config_mode == 'Simple':
+        return get_obs_config('SimpleOutput', 'RecRBTime', int)
+    return get_obs_config('AdvOut', 'RecRBTime', int)
 
 
 def get_base_path(script_settings: Any | None = None) -> Path:
@@ -110,24 +112,23 @@ def get_base_path(script_settings: Any | None = None) -> Path:
         if script_path:
             return Path(script_path)
 
-    config_mode = get_obs_config("Output", "Mode")
-    if config_mode == "Simple":
-        return Path(get_obs_config("SimpleOutput", "FilePath"))
-    else:
-        return Path(get_obs_config("AdvOut", "RecFilePath"))
+    config_mode = get_obs_config('Output', 'Mode')
+    if config_mode == 'Simple':
+        return Path(get_obs_config('SimpleOutput', 'FilePath'))
+    return Path(get_obs_config('AdvOut', 'RecFilePath'))
 
 
 def restart_replay_buffering():
     """
     Restarts replay buffering, obviously -_-
     """
-    _print("Stopping replay buffering...")
+    _print('Stopping replay buffering...')
     replay_output = obs.obs_frontend_get_replay_buffer_output()
     obs.obs_frontend_replay_buffer_stop()
 
     while not obs.obs_output_can_begin_data_capture(replay_output, 0):
         time.sleep(0.1)
-    _print("Replay buffering stopped.")
-    _print("Starting replay buffering...")
+    _print('Replay buffering stopped.')
+    _print('Starting replay buffering...')
     obs.obs_frontend_replay_buffer_start()
-    _print("Replay buffering started.")
+    _print('Replay buffering started.')

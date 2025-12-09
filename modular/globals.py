@@ -154,6 +154,3 @@ class PropertiesNames:
     HK_SAVE_VIDEO_MODE_1 = 'save_video_force_mode_1'
     HK_SAVE_VIDEO_MODE_2 = 'save_video_force_mode_2'
     HK_SAVE_VIDEO_MODE_3 = 'save_video_force_mode_3'
-
-
-PN = PropertiesNames

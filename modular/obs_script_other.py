@@ -13,7 +13,7 @@
 #  GNU Affero General Public License for more details.
 
 from .tech import _print
-from .globals import PN, CONSTANTS, VARIABLES, ClipNamingModes, PopupPathDisplayModes
+from .globals import PropertiesNames, CONSTANTS, VARIABLES, ClipNamingModes, PopupPathDisplayModes
 from .hotkeys import load_hotkeys
 from .obs_related import get_base_path
 from .script_helpers import load_aliases
@@ -31,39 +31,39 @@ import obspython as obs
 
 def script_defaults(s):
     _print('Loading default values...')
-    obs.obs_data_set_default_string(s, PN.PROP_CLIPS_BASE_PATH, str(get_base_path()))
+    obs.obs_data_set_default_string(s, PropertiesNames.PROP_CLIPS_BASE_PATH, str(get_base_path()))
     obs.obs_data_set_default_int(
-        s, PN.PROP_CLIPS_NAMING_MODE, ClipNamingModes.CURRENT_PROCESS.value,
+        s, PropertiesNames.PROP_CLIPS_NAMING_MODE, ClipNamingModes.CURRENT_PROCESS.value,
     )
     obs.obs_data_set_default_string(
-        s, PN.PROP_CLIPS_FILENAME_TEMPLATE, CONSTANTS.DEFAULT_FILENAME_FORMAT,
+        s, PropertiesNames.PROP_CLIPS_FILENAME_TEMPLATE, CONSTANTS.DEFAULT_FILENAME_FORMAT,
     )
-    obs.obs_data_set_default_bool(s, PN.PROP_CLIPS_SAVE_TO_FOLDER, True)
+    obs.obs_data_set_default_bool(s, PropertiesNames.PROP_CLIPS_SAVE_TO_FOLDER, True)
     obs.obs_data_set_default_string(
-        s, PN.PROP_CLIPS_LINKS_FOLDER_PATH, str(get_base_path() / '_links'),
+        s, PropertiesNames.PROP_CLIPS_LINKS_FOLDER_PATH, str(get_base_path() / '_links'),
     )
 
-    # obs.obs_data_set_default_int(s, PN.PROP_VIDEOS_NAMING_MODE, VideoNamingModes.MOST_RECORDED_PROCESS.value)
-    # obs.obs_data_set_default_string(s, PN.PROP_VIDEOS_FILENAME_FORMAT, CONSTANTS.DEFAULT_FILENAME_FORMAT)
-    # obs.obs_data_set_default_bool(s, PN.PROP_VIDEOS_SAVE_TO_FOLDER, True)
+    # obs.obs_data_set_default_int(s, PropertiesNames.PROP_VIDEOS_NAMING_MODE, VideoNamingModes.MOST_RECORDED_PROCESS.value)
+    # obs.obs_data_set_default_string(s, PropertiesNames.PROP_VIDEOS_FILENAME_FORMAT, CONSTANTS.DEFAULT_FILENAME_FORMAT)
+    # obs.obs_data_set_default_bool(s, PropertiesNames.PROP_VIDEOS_SAVE_TO_FOLDER, True)
 
-    obs.obs_data_set_default_bool(s, PN.PROP_NOTIFY_CLIPS_ON_SUCCESS, False)
-    obs.obs_data_set_default_bool(s, PN.PROP_NOTIFY_CLIPS_ON_FAILURE, False)
-    obs.obs_data_set_default_bool(s, PN.PROP_POPUP_CLIPS_ON_SUCCESS, False)
-    obs.obs_data_set_default_bool(s, PN.PROP_POPUP_CLIPS_ON_FAILURE, False)
+    obs.obs_data_set_default_bool(s, PropertiesNames.PROP_NOTIFY_CLIPS_ON_SUCCESS, False)
+    obs.obs_data_set_default_bool(s, PropertiesNames.PROP_NOTIFY_CLIPS_ON_FAILURE, False)
+    obs.obs_data_set_default_bool(s, PropertiesNames.PROP_POPUP_CLIPS_ON_SUCCESS, False)
+    obs.obs_data_set_default_bool(s, PropertiesNames.PROP_POPUP_CLIPS_ON_FAILURE, False)
     obs.obs_data_set_default_int(
-        s, PN.PROP_POPUP_PATH_DISPLAY_MODE, PopupPathDisplayModes.FULL_PATH.value,
+        s, PropertiesNames.PROP_POPUP_PATH_DISPLAY_MODE, PopupPathDisplayModes.FULL_PATH.value,
     )
 
-    obs.obs_data_set_default_int(s, PN.PROP_RESTART_BUFFER_LOOP, 3600)
-    obs.obs_data_set_default_bool(s, PN.PROP_RESTART_BUFFER, True)
+    obs.obs_data_set_default_int(s, PropertiesNames.PROP_RESTART_BUFFER_LOOP, 3600)
+    obs.obs_data_set_default_bool(s, PropertiesNames.PROP_RESTART_BUFFER, True)
 
     arr = obs.obs_data_array_create()
     for index, i in enumerate(CONSTANTS.DEFAULT_ALIASES):
         data = obs.obs_data_create_from_json(json.dumps(i))
         obs.obs_data_array_insert(arr, index, data)
 
-    obs.obs_data_set_default_array(s, PN.PROP_ALIASES_LIST, arr)
+    obs.obs_data_set_default_array(s, PropertiesNames.PROP_ALIASES_LIST, arr)
     _print('The default values are set.')
 
 

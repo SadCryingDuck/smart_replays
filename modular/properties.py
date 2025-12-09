@@ -12,7 +12,7 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-from .globals import PN, VARIABLES, ClipNamingModes, PopupPathDisplayModes
+from .globals import PropertiesNames, VARIABLES, ClipNamingModes, PopupPathDisplayModes
 from .obs_related import get_base_path
 from .properties_callbacks import (
     open_github_callback,
@@ -102,7 +102,7 @@ def setup_clip_paths_settings(group_obj):
     # ----- Clips base path -----
     base_path_prop = obs.obs_properties_add_path(
         props=group_obj,
-        name=PN.PROP_CLIPS_BASE_PATH,
+        name=PropertiesNames.PROP_CLIPS_BASE_PATH,
         description='Base path for clips',
         type=obs.OBS_PATH_DIRECTORY,
         filter=None,
@@ -111,7 +111,7 @@ def setup_clip_paths_settings(group_obj):
 
     t = obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.TXT_CLIPS_BASE_PATH_WARNING,
+        name=PropertiesNames.TXT_CLIPS_BASE_PATH_WARNING,
         description='The path must be on the same disk as the path for OBS records '
         '(File -> Settings -> Output -> Recording -> Recording Path).\n'
         'Otherwise, the script will not be able to move the clip to the correct folder.',
@@ -123,7 +123,7 @@ def setup_clip_paths_settings(group_obj):
     # ----- Clip naming mode -----
     clip_naming_mode_prop = obs.obs_properties_add_list(
         props=group_obj,
-        name=PN.PROP_CLIPS_NAMING_MODE,
+        name=PropertiesNames.PROP_CLIPS_NAMING_MODE,
         description='Clip name based on',
         type=obs.OBS_COMBO_TYPE_RADIO,
         format=obs.OBS_COMBO_FORMAT_INT,
@@ -146,7 +146,7 @@ def setup_clip_paths_settings(group_obj):
 
     t = obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.TXT_CLIPS_HOTKEY_TIP,
+        name=PropertiesNames.TXT_CLIPS_HOTKEY_TIP,
         description='You can set up hotkeys for each mode in File -> Settings -> Hotkeys',
         type=obs.OBS_TEXT_INFO,
     )
@@ -155,7 +155,7 @@ def setup_clip_paths_settings(group_obj):
     # ----- Clip file name format -----
     filename_format_prop = obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.PROP_CLIPS_FILENAME_TEMPLATE,
+        name=PropertiesNames.PROP_CLIPS_FILENAME_TEMPLATE,
         description='File name format',
         type=obs.OBS_TEXT_DEFAULT,
     )
@@ -163,7 +163,7 @@ def setup_clip_paths_settings(group_obj):
 
     t = obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.TXT_CLIPS_FILENAME_TEMPLATE_ERR,
+        name=PropertiesNames.TXT_CLIPS_FILENAME_TEMPLATE_ERR,
         description='<font color="red"><pre> Invalid format!</pre></font>',
         type=obs.OBS_TEXT_INFO,
     )
@@ -172,20 +172,20 @@ def setup_clip_paths_settings(group_obj):
     # ----- Save to folders checkbox -----
     obs.obs_properties_add_bool(
         props=group_obj,
-        name=PN.PROP_CLIPS_SAVE_TO_FOLDER,
+        name=PropertiesNames.PROP_CLIPS_SAVE_TO_FOLDER,
         description='Sort clips into folders by application or scene',
     )
 
     # ----- Create links -----
     create_links_prop = obs.obs_properties_add_bool(
         props=group_obj,
-        name=PN.PROP_CLIPS_CREATE_LINKS,
+        name=PropertiesNames.PROP_CLIPS_CREATE_LINKS,
         description='Create hard links for clips',
     )
 
     links_path_prop = obs.obs_properties_add_path(
         props=group_obj,
-        name=PN.PROP_CLIPS_LINKS_FOLDER_PATH,
+        name=PropertiesNames.PROP_CLIPS_LINKS_FOLDER_PATH,
         description='Links folder',
         type=obs.OBS_PATH_DIRECTORY,
         filter=None,
@@ -193,7 +193,7 @@ def setup_clip_paths_settings(group_obj):
     )
     links_path_warn = obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.TXT_CLIPS_LINKS_FOLDER_PATH_WARNING,
+        name=PropertiesNames.TXT_CLIPS_LINKS_FOLDER_PATH_WARNING,
         description='The path must be on the same disk as the path for OBS records '
         '(File -> Settings -> Output -> Recording -> Recording Path).\n'
         'Otherwise, the script will not be able to create link to the file.',
@@ -203,11 +203,11 @@ def setup_clip_paths_settings(group_obj):
 
     obs.obs_property_set_visible(
         links_path_prop,
-        obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_CLIPS_CREATE_LINKS),
+        obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.PROP_CLIPS_CREATE_LINKS),
     )
     obs.obs_property_set_visible(
         links_path_warn,
-        obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_CLIPS_CREATE_LINKS),
+        obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.PROP_CLIPS_CREATE_LINKS),
     )
 
     # ----- Callbacks -----
@@ -221,7 +221,7 @@ def setup_video_paths_settings(group_obj):
     # ----- Video name condition -----
     filename_condition = obs.obs_properties_add_list(
         props=group_obj,
-        name=PN.PROP_VIDEOS_NAMING_MODE,
+        name=PropertiesNames.PROP_VIDEOS_NAMING_MODE,
         description='Video name based on',
         type=obs.OBS_COMBO_TYPE_RADIO,
         format=obs.OBS_COMBO_FORMAT_INT,
@@ -244,7 +244,7 @@ def setup_video_paths_settings(group_obj):
 
     t = obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.TXT_VIDEOS_HOTKEY_TIP,
+        name=PropertiesNames.TXT_VIDEOS_HOTKEY_TIP,
         description='You can set up hotkeys for each mode in File -> Settings -> Hotkeys',
         type=obs.OBS_TEXT_INFO,
     )
@@ -253,7 +253,7 @@ def setup_video_paths_settings(group_obj):
     # ----- Video file name format -----
     filename_format_prop = obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.PROP_VIDEOS_FILENAME_FORMAT,
+        name=PropertiesNames.PROP_VIDEOS_FILENAME_FORMAT,
         description='File name format',
         type=obs.OBS_TEXT_DEFAULT,
     )
@@ -261,7 +261,7 @@ def setup_video_paths_settings(group_obj):
 
     t = obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.TXT_VIDEOS_FILENAME_FORMAT_ERR,
+        name=PropertiesNames.TXT_VIDEOS_FILENAME_FORMAT_ERR,
         description='<font color="red"><pre> Invalid format!</pre></font>',
         type=obs.OBS_TEXT_INFO,
     )
@@ -270,14 +270,14 @@ def setup_video_paths_settings(group_obj):
     # ----- Save to folders checkbox -----
     obs.obs_properties_add_bool(
         props=group_obj,
-        name=PN.PROP_VIDEOS_SAVE_TO_FOLDER,
+        name=PropertiesNames.PROP_VIDEOS_SAVE_TO_FOLDER,
         description='Create different folders for different video names',
     )
 
     # ----- Rename only if force mode -----
     obs.obs_properties_add_bool(
         props=group_obj,
-        name=PN.PROP_VIDEOS_ONLY_FORCE_MODE,
+        name=PropertiesNames.PROP_VIDEOS_ONLY_FORCE_MODE,
         description="Rename and move the video only if it was saved using the script's hotkeys",
     )
 
@@ -285,12 +285,12 @@ def setup_video_paths_settings(group_obj):
 def setup_notifications_settings(group_obj):
     notification_success_prop = obs.obs_properties_add_bool(
         props=group_obj,
-        name=PN.PROP_NOTIFY_CLIPS_ON_SUCCESS,
+        name=PropertiesNames.PROP_NOTIFY_CLIPS_ON_SUCCESS,
         description='On success',
     )
     success_path_prop = obs.obs_properties_add_path(
         props=group_obj,
-        name=PN.PROP_NOTIFY_CLIPS_ON_SUCCESS_PATH,
+        name=PropertiesNames.PROP_NOTIFY_CLIPS_ON_SUCCESS_PATH,
         description='',
         type=obs.OBS_PATH_FILE,
         filter=None,
@@ -299,12 +299,12 @@ def setup_notifications_settings(group_obj):
 
     notification_failure_prop = obs.obs_properties_add_bool(
         props=group_obj,
-        name=PN.PROP_NOTIFY_CLIPS_ON_FAILURE,
+        name=PropertiesNames.PROP_NOTIFY_CLIPS_ON_FAILURE,
         description='On failure',
     )
     failure_path_prop = obs.obs_properties_add_path(
         props=group_obj,
-        name=PN.PROP_NOTIFY_CLIPS_ON_FAILURE_PATH,
+        name=PropertiesNames.PROP_NOTIFY_CLIPS_ON_FAILURE_PATH,
         description='',
         type=obs.OBS_PATH_FILE,
         filter=None,
@@ -313,11 +313,11 @@ def setup_notifications_settings(group_obj):
 
     obs.obs_property_set_visible(
         success_path_prop,
-        obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_NOTIFY_CLIPS_ON_SUCCESS),
+        obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.PROP_NOTIFY_CLIPS_ON_SUCCESS),
     )
     obs.obs_property_set_visible(
         failure_path_prop,
-        obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_NOTIFY_CLIPS_ON_FAILURE),
+        obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.PROP_NOTIFY_CLIPS_ON_FAILURE),
     )
 
     # ----- Callbacks ------
@@ -332,19 +332,19 @@ def setup_notifications_settings(group_obj):
 def setup_popup_notification_settings(group_obj):
     obs.obs_properties_add_bool(
         props=group_obj,
-        name=PN.PROP_POPUP_CLIPS_ON_SUCCESS,
+        name=PropertiesNames.PROP_POPUP_CLIPS_ON_SUCCESS,
         description='On success',
     )
 
     obs.obs_properties_add_bool(
         props=group_obj,
-        name=PN.PROP_POPUP_CLIPS_ON_FAILURE,
+        name=PropertiesNames.PROP_POPUP_CLIPS_ON_FAILURE,
         description='On failure',
     )
 
     popup_path_type = obs.obs_properties_add_list(
         props=group_obj,
-        name=PN.PROP_POPUP_PATH_DISPLAY_MODE,
+        name=PropertiesNames.PROP_POPUP_PATH_DISPLAY_MODE,
         description='Show',
         type=obs.OBS_COMBO_TYPE_RADIO,
         format=obs.OBS_COMBO_FORMAT_INT,
@@ -375,7 +375,7 @@ def setup_popup_notification_settings(group_obj):
 def setup_aliases_settings(group_obj):
     obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.TXT_ALIASES_DESC,
+        name=PropertiesNames.TXT_ALIASES_DESC,
         description="Executable (.exe) files often have names that don't match the actual game title "
         '(e.g., the game is called Deadlock, but the .exe file is named project8.exe).'
         'You can create an alias for the executable file or folder. '
@@ -385,7 +385,7 @@ def setup_aliases_settings(group_obj):
 
     err_text_1 = obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.TXT_ALIASES_INVALID_CHARACTERS,
+        name=PropertiesNames.TXT_ALIASES_INVALID_CHARACTERS,
         description="""
     <div style="font-size: 14px">
     <span style="color: red">Invalid path or clip name value.<br></span>
@@ -398,14 +398,14 @@ def setup_aliases_settings(group_obj):
 
     err_text_2 = obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.TXT_ALIASES_PATH_EXISTS,
+        name=PropertiesNames.TXT_ALIASES_PATH_EXISTS,
         description="""<div style="font-size: 14px; color: red">This path has already been added to the list.</div>""",
         type=obs.OBS_TEXT_INFO,
     )
 
     err_text_3 = obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.TXT_ALIASES_INVALID_FORMAT,
+        name=PropertiesNames.TXT_ALIASES_INVALID_FORMAT,
         description="""
     <div style="font-size: 14px">
     <span style="color: red">Invalid format.<br></span>
@@ -421,7 +421,7 @@ def setup_aliases_settings(group_obj):
 
     aliases_list = obs.obs_properties_add_editable_list(
         props=group_obj,
-        name=PN.PROP_ALIASES_LIST,
+        name=PropertiesNames.PROP_ALIASES_LIST,
         description='',
         type=obs.OBS_EDITABLE_LIST_TYPE_STRINGS,
         filter=None,
@@ -439,7 +439,7 @@ def setup_aliases_settings(group_obj):
 
     obs.obs_properties_add_path(
         props=group_obj,
-        name=PN.PROP_ALIASES_IMPORT_PATH,
+        name=PropertiesNames.PROP_ALIASES_IMPORT_PATH,
         description='',
         type=obs.OBS_PATH_FILE,
         filter=None,
@@ -448,14 +448,14 @@ def setup_aliases_settings(group_obj):
 
     obs.obs_properties_add_button(
         group_obj,
-        PN.BTN_ALIASES_IMPORT,
+        PropertiesNames.BTN_ALIASES_IMPORT,
         'Import aliases',
         import_aliases_from_json_callback,
     )
 
     obs.obs_properties_add_path(
         props=group_obj,
-        name=PN.PROP_ALIASES_EXPORT_PATH,
+        name=PropertiesNames.PROP_ALIASES_EXPORT_PATH,
         description='',
         type=obs.OBS_PATH_DIRECTORY,
         filter=None,
@@ -464,7 +464,7 @@ def setup_aliases_settings(group_obj):
 
     obs.obs_properties_add_button(
         group_obj,
-        PN.BTN_ALIASES_EXPORT,
+        PropertiesNames.BTN_ALIASES_EXPORT,
         'Export aliases',
         export_aliases_to_json_callback,
     )
@@ -476,7 +476,7 @@ def setup_aliases_settings(group_obj):
 def setup_other_settings(group_obj):
     obs.obs_properties_add_text(
         props=group_obj,
-        name=PN.TXT_RESTART_BUFFER_LOOP,
+        name=PropertiesNames.TXT_RESTART_BUFFER_LOOP,
         description="""If replay buffering runs too long without a restart, saving clips may become slow, and bugs can occur (thanks, OBS).
 It's recommended to restart it every 1-2 hours (3600-7200 seconds). Before restarting, the script checks OBS's max clip length and detects keyboard or mouse input. If input is detected, the restart is delayed by the max clip length; otherwise, it proceeds immediately.
 To disable scheduled restarts, set the value to 0.""",
@@ -485,7 +485,7 @@ To disable scheduled restarts, set the value to 0.""",
 
     obs.obs_properties_add_int(
         props=group_obj,
-        name=PN.PROP_RESTART_BUFFER_LOOP,
+        name=PropertiesNames.PROP_RESTART_BUFFER_LOOP,
         description='Restart every (s)',
         min=0,
         max=7200,
@@ -494,7 +494,7 @@ To disable scheduled restarts, set the value to 0.""",
 
     obs.obs_properties_add_bool(
         props=group_obj,
-        name=PN.PROP_RESTART_BUFFER,
+        name=PropertiesNames.PROP_RESTART_BUFFER,
         description='Restart replay buffer after clip saving',
     )
 
@@ -524,27 +524,27 @@ def script_properties():
     other_gr = obs.obs_properties_create()
 
     obs.obs_properties_add_group(
-        p, PN.GR_CLIPS_PATH_SETTINGS, 'Clip path settings', obs.OBS_GROUP_NORMAL, clip_path_gr,
+        p, PropertiesNames.GR_CLIPS_PATH_SETTINGS, 'Clip path settings', obs.OBS_GROUP_NORMAL, clip_path_gr,
     )
-    # obs.obs_properties_add_group(p, PN.GR_VIDEOS_PATH_SETTINGS, "Video path settings", obs.OBS_GROUP_NORMAL, video_path_gr)   # todo: for future updates
+    # obs.obs_properties_add_group(p, PropertiesNames.GR_VIDEOS_PATH_SETTINGS, "Video path settings", obs.OBS_GROUP_NORMAL, video_path_gr)   # todo: for future updates
     obs.obs_properties_add_group(
         p,
-        PN.GR_SOUND_NOTIFICATION_SETTINGS,
+        PropertiesNames.GR_SOUND_NOTIFICATION_SETTINGS,
         'Sound notifications',
         obs.OBS_GROUP_CHECKABLE,
         notification_gr,
     )
     obs.obs_properties_add_group(
         p,
-        PN.GR_POPUP_NOTIFICATION_SETTINGS,
+        PropertiesNames.GR_POPUP_NOTIFICATION_SETTINGS,
         'Popup notifications',
         obs.OBS_GROUP_CHECKABLE,
         popup_gr,
     )
     obs.obs_properties_add_group(
-        p, PN.GR_ALIASES_SETTINGS, 'Aliases', obs.OBS_GROUP_NORMAL, aliases_gr,
+        p, PropertiesNames.GR_ALIASES_SETTINGS, 'Aliases', obs.OBS_GROUP_NORMAL, aliases_gr,
     )
-    obs.obs_properties_add_group(p, PN.GR_OTHER_SETTINGS, 'Other', obs.OBS_GROUP_NORMAL, other_gr)
+    obs.obs_properties_add_group(p, PropertiesNames.GR_OTHER_SETTINGS, 'Other', obs.OBS_GROUP_NORMAL, other_gr)
 
     # ------ Setup properties ------
     setup_clip_paths_settings(clip_path_gr)

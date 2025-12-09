@@ -13,7 +13,7 @@
 #  GNU Affero General Public License for more details.
 
 from .tech import _print, get_executable_path, get_active_window_pid
-from .globals import PN, CONSTANTS, VARIABLES, ClipNamingModes
+from .globals import PropertiesNames, CONSTANTS, VARIABLES, ClipNamingModes
 from .obs_related import get_current_scene_name
 
 import traceback
@@ -34,7 +34,7 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
     """
     _print('Generating clip base name...')
     mode = (
-        obs.obs_data_get_int(VARIABLES.script_settings, PN.PROP_CLIPS_NAMING_MODE)
+        obs.obs_data_get_int(VARIABLES.script_settings, PropertiesNames.PROP_CLIPS_NAMING_MODE)
         if mode is None
         else mode
     )

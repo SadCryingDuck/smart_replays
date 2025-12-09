@@ -13,7 +13,7 @@
 #  GNU Affero General Public License for more details.
 
 from .tech import _print
-from .globals import PN, CONSTANTS, VARIABLES, PopupPathDisplayModes
+from .globals import PropertiesNames, CONSTANTS, VARIABLES, PopupPathDisplayModes
 from .obs_related import restart_replay_buffering, get_replay_buffer_max_time
 from .save_buffer import move_clip_file
 from .script_helpers import notify
@@ -46,7 +46,7 @@ def on_buffer_recording_started_callback(event):
 
     # Start replay buffer auto restart loop.
     if restart_loop_time := obs.obs_data_get_int(
-        VARIABLES.script_settings, PN.PROP_RESTART_BUFFER_LOOP,
+        VARIABLES.script_settings, PropertiesNames.PROP_RESTART_BUFFER_LOOP,
     ):
         obs.timer_add(restart_replay_buffering_callback, restart_loop_time * 1000)
 
@@ -69,7 +69,7 @@ def on_buffer_save_callback(event):
         return
 
     path_display_type = obs.obs_data_get_int(
-        VARIABLES.script_settings, PN.PROP_POPUP_PATH_DISPLAY_MODE,
+        VARIABLES.script_settings, PropertiesNames.PROP_POPUP_PATH_DISPLAY_MODE,
     )
     path_display_type = PopupPathDisplayModes(path_display_type)
 
@@ -77,7 +77,7 @@ def on_buffer_save_callback(event):
 
     try:
         clip_name, path = move_clip_file(mode=VARIABLES.force_mode)
-        if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_RESTART_BUFFER):
+        if obs.obs_data_get_bool(VARIABLES.script_settings, PropertiesNames.PROP_RESTART_BUFFER):
             # IMPORTANT
             # I don't know why, but it seems like stopping and starting replay buffering should be in the separate thread.
             # Otherwise it can "stuck" on stopping.

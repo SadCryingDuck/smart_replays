@@ -20,7 +20,7 @@ class AliasParsingError(Exception):
         """
         :param index: alias index.
         """
-        super(Exception).__init__()
+        super().__init__()
         self.index = index
 
 

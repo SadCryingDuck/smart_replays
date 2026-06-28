@@ -125,8 +125,15 @@ def restart_replay_buffering():
     replay_output = obs.obs_frontend_get_replay_buffer_output()
     obs.obs_frontend_replay_buffer_stop()
 
+    deadline = time.monotonic() + CONSTANTS.REPLAY_BUFFER_STOP_TIMEOUT_SECONDS
     while not obs.obs_output_can_begin_data_capture(replay_output, 0):
-        time.sleep(0.1)
+        if time.monotonic() > deadline:
+            _print("Timed out waiting for the replay buffer to stop. Restart aborted.")
+            obs.obs_output_release(replay_output)
+            return
+        time.sleep(CONSTANTS.REPLAY_BUFFER_STOP_POLL_INTERVAL_SECONDS)
+
+    obs.obs_output_release(replay_output)
     _print("Replay buffering stopped.")
     _print("Starting replay buffering...")
     obs.obs_frontend_replay_buffer_start()

@@ -22,8 +22,20 @@ from datetime import datetime
 from contextlib import suppress
 import os
 
-GetTickCount64 = ctypes.windll.kernel32.GetTickCount64
+kernel32 = ctypes.windll.kernel32
+
+GetTickCount64 = kernel32.GetTickCount64
 GetTickCount64.restype = ctypes.c_ulonglong
+
+kernel32.OpenProcess.restype = wintypes.HANDLE
+kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+kernel32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD,
+                                                wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
+kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+EXECUTABLE_PATH_BUFFER_SIZE = 32768
 
 
 class LASTINPUTINFO(ctypes.Structure):
@@ -53,19 +65,20 @@ def get_executable_path(pid: int) -> Path:
     :param pid: process ID.
     :return: Executable path.
     """
-    process_handle = ctypes.windll.kernel32.OpenProcess(0x0400 | 0x0010, False, pid)
-    # PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
-
+    process_handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
     if not process_handle:
         raise OSError(f"Process {pid} does not exist.")
 
-    filename_buffer = ctypes.create_unicode_buffer(260)  # Windows path is 260 characters max.
-    result = ctypes.windll.psapi.GetModuleFileNameExW(process_handle, None, filename_buffer, 260)
-    ctypes.windll.kernel32.CloseHandle(process_handle)
+    try:
+        size = wintypes.DWORD(EXECUTABLE_PATH_BUFFER_SIZE)
+        filename_buffer = ctypes.create_unicode_buffer(size.value)
+        result = kernel32.QueryFullProcessImageNameW(process_handle, 0, filename_buffer, ctypes.byref(size))
+    finally:
+        kernel32.CloseHandle(process_handle)
+
     if result:
         return Path(filename_buffer.value)
-    else:
-        raise RuntimeError(f"Cannot get executable path for process {pid}.")
+    raise RuntimeError(f"Cannot get executable path for process {pid}.")
 
 
 def play_sound(path: str | Path):

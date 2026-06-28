@@ -23,6 +23,7 @@ import webbrowser
 import os
 import winsound
 import subprocess
+import shutil
 from tkinter import font as f
 from enum import Enum
 from threading import Lock
@@ -215,6 +216,9 @@ class CONSTANTS:
     FILENAME_PROHIBITED_CHARS = r'/\:"<>*?|%'
     PATH_PROHIBITED_CHARS = r'"<>*?|%'
     DEFAULT_FILENAME_FORMAT = "%NAME_%d.%m.%Y_%H-%M-%S"
+    DEFAULT_CLIP_NAME = "UnknownApp"
+    REPLAY_BUFFER_STOP_TIMEOUT_SECONDS = 5
+    REPLAY_BUFFER_STOP_POLL_INTERVAL_SECONDS = 0.1
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -344,7 +348,7 @@ class AliasParsingError(Exception):
         """
         :param index: alias index.
         """
-        super(Exception).__init__()
+        super().__init__()
         self.index = index
 
 
@@ -588,17 +592,17 @@ def setup_video_paths_settings(group_obj):
     obs.obs_property_list_add_int(
         p=filename_condition,
         name="the name of an active app (.exe file name) at the moment of video saving",
-        val=1
+        val=VideoNamingModes.CURRENT_PROCESS.value
     )
     obs.obs_property_list_add_int(
         p=filename_condition,
         name="the name of an app (.exe file name) that was active most of the time during the video recording",
-        val=2
+        val=VideoNamingModes.MOST_RECORDED_PROCESS.value
     )
     obs.obs_property_list_add_int(
         p=filename_condition,
         name="the name of the current scene",
-        val=3
+        val=VideoNamingModes.CURRENT_SCENE.value
     )
 
     t = obs.obs_properties_add_text(
@@ -1032,7 +1036,6 @@ def check_base_path_callback(p, prop, data):
     else:
         obs.obs_property_text_set_info_type(warn_text, obs.OBS_TEXT_INFO_ERROR)
         obs.obs_data_set_string(data, PN.PROP_CLIPS_BASE_PATH, str(obs_records_path))
-        print("WARN")
     return True
 
 
@@ -1077,8 +1080,20 @@ def export_aliases_to_json_callback(*args):
 
 
 # -------------------- tech.py --------------------
-GetTickCount64 = ctypes.windll.kernel32.GetTickCount64
+kernel32 = ctypes.windll.kernel32
+
+GetTickCount64 = kernel32.GetTickCount64
 GetTickCount64.restype = ctypes.c_ulonglong
+
+kernel32.OpenProcess.restype = wintypes.HANDLE
+kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+kernel32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD,
+                                                wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
+kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+EXECUTABLE_PATH_BUFFER_SIZE = 32768
 
 
 class LASTINPUTINFO(ctypes.Structure):
@@ -1108,19 +1123,20 @@ def get_executable_path(pid: int) -> Path:
     :param pid: process ID.
     :return: Executable path.
     """
-    process_handle = ctypes.windll.kernel32.OpenProcess(0x0400 | 0x0010, False, pid)
-    # PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
-
+    process_handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
     if not process_handle:
         raise OSError(f"Process {pid} does not exist.")
 
-    filename_buffer = ctypes.create_unicode_buffer(260)  # Windows path is 260 characters max.
-    result = ctypes.windll.psapi.GetModuleFileNameExW(process_handle, None, filename_buffer, 260)
-    ctypes.windll.kernel32.CloseHandle(process_handle)
+    try:
+        size = wintypes.DWORD(EXECUTABLE_PATH_BUFFER_SIZE)
+        filename_buffer = ctypes.create_unicode_buffer(size.value)
+        result = kernel32.QueryFullProcessImageNameW(process_handle, 0, filename_buffer, ctypes.byref(size))
+    finally:
+        kernel32.CloseHandle(process_handle)
+
     if result:
         return Path(filename_buffer.value)
-    else:
-        raise RuntimeError(f"Cannot get executable path for process {pid}.")
+    raise RuntimeError(f"Cannot get executable path for process {pid}.")
 
 
 def play_sound(path: str | Path):
@@ -1143,7 +1159,7 @@ def get_time_since_last_input() -> int:
     if ctypes.windll.user32.GetLastInputInfo(ctypes.byref(last_input_info)):
         current_time = GetTickCount64()
         idle_time_ms = current_time - last_input_info.dwTime
-        return max(idle_time_ms // 1000, 0)
+        return idle_time_ms // 1000
     return 0
 
 
@@ -1265,8 +1281,15 @@ def restart_replay_buffering():
     replay_output = obs.obs_frontend_get_replay_buffer_output()
     obs.obs_frontend_replay_buffer_stop()
 
+    deadline = time.monotonic() + CONSTANTS.REPLAY_BUFFER_STOP_TIMEOUT_SECONDS
     while not obs.obs_output_can_begin_data_capture(replay_output, 0):
-        time.sleep(0.1)
+        if time.monotonic() > deadline:
+            _print("Timed out waiting for the replay buffer to stop. Restart aborted.")
+            obs.obs_output_release(replay_output)
+            return
+        time.sleep(CONSTANTS.REPLAY_BUFFER_STOP_POLL_INTERVAL_SECONDS)
+
+    obs.obs_output_release(replay_output)
     _print("Replay buffering stopped.")
     _print("Starting replay buffering...")
     obs.obs_frontend_replay_buffer_start()
@@ -1274,6 +1297,14 @@ def restart_replay_buffering():
 
 
 # -------------------- script_helpers.py --------------------
+def show_popup_notification(python_exe: str, *args: str) -> None:
+    try:
+        subprocess.Popen([python_exe, __file__, *args])
+    except Exception:
+        _print("Failed to launch popup notification.")
+        _print(traceback.format_exc())
+
+
 def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayModes):
     """
     Plays and shows success / failure notification if it's enabled in notifications settings.
@@ -1295,14 +1326,14 @@ def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayMo
             play_sound(path)
 
         if popup_notifications and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS):
-            subprocess.Popen([python_exe, __file__, "Clip saved", f"Clip saved to {clip_path}"])
+            show_popup_notification(python_exe, "Clip saved", f"Clip saved to {clip_path}")
     else:
         if sound_notifications and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_NOTIFY_CLIPS_ON_FAILURE):
             path = obs.obs_data_get_string(VARIABLES.script_settings, PN.PROP_NOTIFY_CLIPS_ON_FAILURE_PATH)
             play_sound(path)
 
         if popup_notifications and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_POPUP_CLIPS_ON_FAILURE):
-            subprocess.Popen([python_exe, __file__, "Clip not saved", f"More in the logs.", "#C00000"])
+            show_popup_notification(python_exe, "Clip not saved", "More in the logs.", "#C00000")
 
 
 def load_aliases(script_settings_dict: dict):
@@ -1355,29 +1386,27 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
     mode = ClipNamingModes(mode)
 
     if mode in [ClipNamingModes.CURRENT_PROCESS, ClipNamingModes.MOST_RECORDED_PROCESS]:
-        if mode is ClipNamingModes.CURRENT_PROCESS:
-            _print("Clip file name depends on the name of an active app (.exe file name) at the moment of clip saving.")
-            pid = get_active_window_pid()
-            executable_path = get_executable_path(pid)
-            _print(f"Current active window process ID: {pid}")
-            _print(f"Current active window executable: {executable_path}")
+        executable_path = None
 
+        if mode is ClipNamingModes.MOST_RECORDED_PROCESS and VARIABLES.clip_exe_history:
+            executable_path = max(VARIABLES.clip_exe_history, key=VARIABLES.clip_exe_history.count)
         else:
-            _print("Clip file name depends on the name of an app (.exe file name) "
-                   "that was active most of the time during the clip recording.")
-            if VARIABLES.clip_exe_history:
-                executable_path = max(VARIABLES.clip_exe_history, key=VARIABLES.clip_exe_history.count)
-            else:
+            try:
                 executable_path = get_executable_path(get_active_window_pid())
+            except Exception:
+                _print("Failed to get the active window executable path.")
+                _print(traceback.format_exc())
 
-        _print(f'Searching for {executable_path} in aliases list...')
+        if executable_path is None:
+            _print(f"Falling back to default clip name: {CONSTANTS.DEFAULT_CLIP_NAME}")
+            return CONSTANTS.DEFAULT_CLIP_NAME
+
         if alias := get_alias(executable_path, VARIABLES.aliases):
-            _print(f'Alias found: {alias}.')
+            _print(f"Alias found: {alias}.")
             return alias
-        else:
-            _print(f"{executable_path} or its parents weren't found in aliases list. "
-                   f"Assigning the name of the executable: {executable_path.stem}")
-            return executable_path.stem
+
+        _print(f"No alias found. Using executable name: {executable_path.stem}")
+        return executable_path.stem
 
     else:
         _print("Clip filename depends on the name of the current scene name.")
@@ -1457,12 +1486,14 @@ def ensure_unique_filename(file_path: str | Path) -> Path:
 def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     old_file_path = get_last_replay_file_name()
     _print(f"Old clip file path: {old_file_path}")
+    if not old_file_path:
+        raise FileNotFoundError("OBS did not return a replay file path.")
 
     clip_name = gen_clip_base_name(mode)
-    ext = old_file_path.split(".")[-1]
+    ext = Path(old_file_path).suffix
     filename_template = obs.obs_data_get_string(VARIABLES.script_settings,
                                                 PN.PROP_CLIPS_FILENAME_TEMPLATE)
-    filename = gen_filename(clip_name, filename_template) + f".{ext}"
+    filename = gen_filename(clip_name, filename_template) + ext
 
     new_folder = Path(get_base_path(script_settings=VARIABLES.script_settings))
     if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_CLIPS_SAVE_TO_FOLDER):
@@ -1473,13 +1504,17 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     new_path = ensure_unique_filename(new_path)
     _print(f"New clip file path: {new_path}")
 
-    os.rename(old_file_path, str(new_path))
+    shutil.move(str(old_file_path), str(new_path))
     _print("Clip file successfully moved.")
     os.utime(new_folder)
 
     if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_CLIPS_CREATE_LINKS):
         links_folder = obs.obs_data_get_string(VARIABLES.script_settings, PN.PROP_CLIPS_LINKS_FOLDER_PATH)
-        create_hard_link(new_path, links_folder)
+        try:
+            create_hard_link(new_path, links_folder)
+        except Exception:
+            _print("Failed to create hard link.")
+            _print(traceback.format_exc())
     return clip_name, new_path
 
 
@@ -1509,7 +1544,7 @@ def on_buffer_recording_started_callback(event):
         return
 
     # Reset and restart exe history
-    VARIABLES.clip_exe_history = deque([], maxlen=get_replay_buffer_max_time())
+    VARIABLES.clip_exe_history = deque([], maxlen=max(1, get_replay_buffer_max_time()))
     _print(f"Exe history deque created. Maxlen={VARIABLES.clip_exe_history.maxlen}.")
     obs.timer_add(append_clip_exe_history, 1000)
 
@@ -1528,7 +1563,8 @@ def on_buffer_recording_stopped_callback(event):
 
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
-    VARIABLES.clip_exe_history.clear()
+    if VARIABLES.clip_exe_history is not None:
+        VARIABLES.clip_exe_history.clear()
 
 
 def on_buffer_save_callback(event):
@@ -1549,15 +1585,15 @@ def on_buffer_save_callback(event):
             # Otherwise it can "stuck" on stopping.
             Thread(target=restart_replay_buffering, daemon=True).start()
 
-        if VARIABLES.force_mode:
-            VARIABLES.force_mode = None
-            CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
-
         notify(True, path, path_display_mode=path_display_type)
     except:
         _print("An error occurred while moving file to the new destination.")
         _print(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
+    finally:
+        VARIABLES.force_mode = None
+        if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
+            CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
     _print("-" * 50)
 
 

@@ -35,7 +35,7 @@ def on_buffer_recording_started_callback(event):
         return
 
     # Reset and restart exe history
-    VARIABLES.clip_exe_history = deque([], maxlen=get_replay_buffer_max_time())
+    VARIABLES.clip_exe_history = deque([], maxlen=max(1, get_replay_buffer_max_time()))
     _print(f"Exe history deque created. Maxlen={VARIABLES.clip_exe_history.maxlen}.")
     obs.timer_add(append_clip_exe_history, 1000)
 
@@ -54,7 +54,8 @@ def on_buffer_recording_stopped_callback(event):
 
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
-    VARIABLES.clip_exe_history.clear()
+    if VARIABLES.clip_exe_history is not None:
+        VARIABLES.clip_exe_history.clear()
 
 
 def on_buffer_save_callback(event):
@@ -75,15 +76,15 @@ def on_buffer_save_callback(event):
             # Otherwise it can "stuck" on stopping.
             Thread(target=restart_replay_buffering, daemon=True).start()
 
-        if VARIABLES.force_mode:
-            VARIABLES.force_mode = None
-            CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
-
         notify(True, path, path_display_mode=path_display_type)
     except:
         _print("An error occurred while moving file to the new destination.")
         _print(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
+    finally:
+        VARIABLES.force_mode = None
+        if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
+            CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
     _print("-" * 50)
 
 

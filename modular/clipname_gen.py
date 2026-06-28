@@ -37,29 +37,27 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
     mode = ClipNamingModes(mode)
 
     if mode in [ClipNamingModes.CURRENT_PROCESS, ClipNamingModes.MOST_RECORDED_PROCESS]:
-        if mode is ClipNamingModes.CURRENT_PROCESS:
-            _print("Clip file name depends on the name of an active app (.exe file name) at the moment of clip saving.")
-            pid = get_active_window_pid()
-            executable_path = get_executable_path(pid)
-            _print(f"Current active window process ID: {pid}")
-            _print(f"Current active window executable: {executable_path}")
+        executable_path = None
 
+        if mode is ClipNamingModes.MOST_RECORDED_PROCESS and VARIABLES.clip_exe_history:
+            executable_path = max(VARIABLES.clip_exe_history, key=VARIABLES.clip_exe_history.count)
         else:
-            _print("Clip file name depends on the name of an app (.exe file name) "
-                   "that was active most of the time during the clip recording.")
-            if VARIABLES.clip_exe_history:
-                executable_path = max(VARIABLES.clip_exe_history, key=VARIABLES.clip_exe_history.count)
-            else:
+            try:
                 executable_path = get_executable_path(get_active_window_pid())
+            except Exception:
+                _print("Failed to get the active window executable path.")
+                _print(traceback.format_exc())
 
-        _print(f'Searching for {executable_path} in aliases list...')
+        if executable_path is None:
+            _print(f"Falling back to default clip name: {CONSTANTS.DEFAULT_CLIP_NAME}")
+            return CONSTANTS.DEFAULT_CLIP_NAME
+
         if alias := get_alias(executable_path, VARIABLES.aliases):
-            _print(f'Alias found: {alias}.')
+            _print(f"Alias found: {alias}.")
             return alias
-        else:
-            _print(f"{executable_path} or its parents weren't found in aliases list. "
-                   f"Assigning the name of the executable: {executable_path.stem}")
-            return executable_path.stem
+
+        _print(f"No alias found. Using executable name: {executable_path.stem}")
+        return executable_path.stem
 
     else:
         _print("Clip filename depends on the name of the current scene name.")

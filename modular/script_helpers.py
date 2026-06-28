@@ -17,7 +17,7 @@ from .globals import (VARIABLES, CONSTANTS, PN)
 from .exceptions import AliasInvalidFormat, AliasInvalidCharacters, AliasPathAlreadyExists
 from .globals import ConfigTypes, PopupPathDisplayModes
 from .obs_related import get_obs_config
-from .tech import play_sound, _print
+from .tech import log, play_sound
 
 from pathlib import Path
 import os
@@ -30,8 +30,8 @@ def show_popup_notification(python_exe: str, *args: str) -> None:
     try:
         subprocess.Popen([python_exe, __file__, *args])
     except Exception:
-        _print("Failed to launch popup notification.")
-        _print(traceback.format_exc())
+        log.warning("Failed to launch popup notification.")
+        log.debug(traceback.format_exc())
 
 
 def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayModes):
@@ -72,7 +72,7 @@ def load_aliases(script_settings_dict: dict):
 
     :param script_settings_dict: Script settings as dict.
     """
-    _print("Loading aliases...")
+    log.debug("Loading aliases...")
 
     new_aliases = {}
     aliases_list = script_settings_dict.get(PN.PROP_ALIASES_LIST)
@@ -97,4 +97,4 @@ def load_aliases(script_settings_dict: dict):
         new_aliases[Path(path)] = name
 
     VARIABLES.aliases = new_aliases
-    _print(f"{len(VARIABLES.aliases)} aliases are loaded.")
+    log.debug(f"{len(VARIABLES.aliases)} aliases are loaded.")

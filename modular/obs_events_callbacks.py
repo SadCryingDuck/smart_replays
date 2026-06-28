@@ -13,7 +13,7 @@
 #  GNU Affero General Public License for more details.
 
 from .globals import VARIABLES, PN, CONSTANTS, PopupPathDisplayModes
-from .tech import _print
+from .tech import log
 from .obs_related import get_replay_buffer_max_time, restart_replay_buffering
 from .script_helpers import notify
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history, append_video_exe_history
@@ -36,7 +36,7 @@ def on_buffer_recording_started_callback(event):
 
     # Reset and restart exe history
     VARIABLES.clip_exe_history = deque([], maxlen=max(1, get_replay_buffer_max_time()))
-    _print(f"Exe history deque created. Maxlen={VARIABLES.clip_exe_history.maxlen}.")
+    log.debug(f"Exe history deque created. Maxlen={VARIABLES.clip_exe_history.maxlen}.")
     obs.timer_add(append_clip_exe_history, 1000)
 
     # Start replay buffer auto restart loop.
@@ -66,7 +66,7 @@ def on_buffer_save_callback(event):
                                              PN.PROP_POPUP_PATH_DISPLAY_MODE)
     path_display_type = PopupPathDisplayModes(path_display_type)
 
-    _print(f"{'SAVING BUFFER':->50}")
+    log.debug(f"{'SAVING BUFFER':->50}")
 
     try:
         clip_name, path = move_clip_file(mode=VARIABLES.force_mode)
@@ -78,14 +78,14 @@ def on_buffer_save_callback(event):
 
         notify(True, path, path_display_mode=path_display_type)
     except Exception:
-        _print("An error occurred while moving file to the new destination.")
-        _print(traceback.format_exc())
+        log.error("An error occurred while moving file to the new destination.")
+        log.debug(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
     finally:
         VARIABLES.force_mode = None
         if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
             CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
-    _print("-" * 50)
+    log.debug("-" * 50)
 
 
 def on_video_recording_started_callback(event):  # todo: for future updates

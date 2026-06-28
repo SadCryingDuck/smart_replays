@@ -12,7 +12,7 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-from .tech import _print
+from .tech import log
 
 from urllib.request import urlopen
 import json
@@ -28,14 +28,14 @@ def get_latest_release_tag() -> dict | None:  # todo: for future updates
                 data = json.load(response)
                 return data.get('tag_name')
     except Exception:
-        _print("Failed to check updates.")
-        _print(traceback.format_exc())
+        log.warning("Failed to check updates.")
+        log.debug(traceback.format_exc())
     return None
 
 
 def check_updates(current_version: str):  # todo: for future updates
     latest_version = get_latest_release_tag()
-    _print(latest_version)
+    log.debug(latest_version)
     if latest_version and f'v{current_version}' != latest_version:
         return True
     return False

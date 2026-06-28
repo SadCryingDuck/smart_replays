@@ -145,6 +145,7 @@ class PropertiesNames:
     PROP_RESTART_BUFFER = "restart_buffer"
     PROP_RESTART_BUFFER_LOOP = "restart_buffer_loop"
     TXT_RESTART_BUFFER_LOOP = "restart_buffer_loop_desc"
+    PROP_DEBUG_MODE = "debug_mode"
 
     # Hotkeys
     HK_SAVE_BUFFER_MODE_1 = "save_buffer_force_mode_1"

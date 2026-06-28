@@ -215,6 +215,7 @@ class CONSTANTS:
     FILENAME_PROHIBITED_CHARS = r'/\:"<>*?|%'
     PATH_PROHIBITED_CHARS = r'"<>*?|%'
     DEFAULT_FILENAME_FORMAT = "%NAME_%d.%m.%Y_%H-%M-%S"
+    DEFAULT_CLIP_NAME = "UnknownApp"
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -1077,8 +1078,19 @@ def export_aliases_to_json_callback(*args):
 
 
 # -------------------- tech.py --------------------
-GetTickCount64 = ctypes.windll.kernel32.GetTickCount64
+kernel32 = ctypes.windll.kernel32
+
+GetTickCount64 = kernel32.GetTickCount64
 GetTickCount64.restype = ctypes.c_ulonglong
+
+kernel32.OpenProcess.restype = wintypes.HANDLE
+kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+kernel32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD,
+                                                wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
+kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
 
 class LASTINPUTINFO(ctypes.Structure):
@@ -1108,19 +1120,20 @@ def get_executable_path(pid: int) -> Path:
     :param pid: process ID.
     :return: Executable path.
     """
-    process_handle = ctypes.windll.kernel32.OpenProcess(0x0400 | 0x0010, False, pid)
-    # PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
-
+    process_handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
     if not process_handle:
         raise OSError(f"Process {pid} does not exist.")
 
-    filename_buffer = ctypes.create_unicode_buffer(260)  # Windows path is 260 characters max.
-    result = ctypes.windll.psapi.GetModuleFileNameExW(process_handle, None, filename_buffer, 260)
-    ctypes.windll.kernel32.CloseHandle(process_handle)
+    try:
+        size = wintypes.DWORD(32768)
+        filename_buffer = ctypes.create_unicode_buffer(size.value)
+        result = kernel32.QueryFullProcessImageNameW(process_handle, 0, filename_buffer, ctypes.byref(size))
+    finally:
+        kernel32.CloseHandle(process_handle)
+
     if result:
         return Path(filename_buffer.value)
-    else:
-        raise RuntimeError(f"Cannot get executable path for process {pid}.")
+    raise RuntimeError(f"Cannot get executable path for process {pid}.")
 
 
 def play_sound(path: str | Path):
@@ -1143,7 +1156,7 @@ def get_time_since_last_input() -> int:
     if ctypes.windll.user32.GetLastInputInfo(ctypes.byref(last_input_info)):
         current_time = GetTickCount64()
         idle_time_ms = current_time - last_input_info.dwTime
-        return max(idle_time_ms // 1000, 0)
+        return idle_time_ms // 1000
     return 0
 
 
@@ -1355,29 +1368,27 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
     mode = ClipNamingModes(mode)
 
     if mode in [ClipNamingModes.CURRENT_PROCESS, ClipNamingModes.MOST_RECORDED_PROCESS]:
-        if mode is ClipNamingModes.CURRENT_PROCESS:
-            _print("Clip file name depends on the name of an active app (.exe file name) at the moment of clip saving.")
-            pid = get_active_window_pid()
-            executable_path = get_executable_path(pid)
-            _print(f"Current active window process ID: {pid}")
-            _print(f"Current active window executable: {executable_path}")
+        executable_path = None
 
+        if mode is ClipNamingModes.MOST_RECORDED_PROCESS and VARIABLES.clip_exe_history:
+            executable_path = max(VARIABLES.clip_exe_history, key=VARIABLES.clip_exe_history.count)
         else:
-            _print("Clip file name depends on the name of an app (.exe file name) "
-                   "that was active most of the time during the clip recording.")
-            if VARIABLES.clip_exe_history:
-                executable_path = max(VARIABLES.clip_exe_history, key=VARIABLES.clip_exe_history.count)
-            else:
+            try:
                 executable_path = get_executable_path(get_active_window_pid())
+            except Exception:
+                _print("Failed to get the active window executable path.")
+                _print(traceback.format_exc())
 
-        _print(f'Searching for {executable_path} in aliases list...')
+        if executable_path is None:
+            _print(f"Falling back to default clip name: {CONSTANTS.DEFAULT_CLIP_NAME}")
+            return CONSTANTS.DEFAULT_CLIP_NAME
+
         if alias := get_alias(executable_path, VARIABLES.aliases):
-            _print(f'Alias found: {alias}.')
+            _print(f"Alias found: {alias}.")
             return alias
-        else:
-            _print(f"{executable_path} or its parents weren't found in aliases list. "
-                   f"Assigning the name of the executable: {executable_path.stem}")
-            return executable_path.stem
+
+        _print(f"No alias found. Using executable name: {executable_path.stem}")
+        return executable_path.stem
 
     else:
         _print("Clip filename depends on the name of the current scene name.")
@@ -1509,7 +1520,7 @@ def on_buffer_recording_started_callback(event):
         return
 
     # Reset and restart exe history
-    VARIABLES.clip_exe_history = deque([], maxlen=get_replay_buffer_max_time())
+    VARIABLES.clip_exe_history = deque([], maxlen=max(1, get_replay_buffer_max_time()))
     _print(f"Exe history deque created. Maxlen={VARIABLES.clip_exe_history.maxlen}.")
     obs.timer_add(append_clip_exe_history, 1000)
 
@@ -1549,15 +1560,15 @@ def on_buffer_save_callback(event):
             # Otherwise it can "stuck" on stopping.
             Thread(target=restart_replay_buffering, daemon=True).start()
 
-        if VARIABLES.force_mode:
-            VARIABLES.force_mode = None
-            CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
-
         notify(True, path, path_display_mode=path_display_type)
     except:
         _print("An error occurred while moving file to the new destination.")
         _print(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
+    finally:
+        VARIABLES.force_mode = None
+        if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
+            CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
     _print("-" * 50)
 
 

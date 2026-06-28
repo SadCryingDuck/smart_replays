@@ -50,7 +50,7 @@ class Imports:
                 self.imports[module_name].add(module_asname)
 
             if verbose:
-                logger.info(f'Absolute import of {module_name} as {module_asname or module_name} added.')
+                logger.debug(f'Absolute import of {module_name} as {module_asname or module_name} added.')
 
         else:  # if it is from import
             if module_name not in self.from_imports:
@@ -61,7 +61,7 @@ class Imports:
                 self.from_imports[module_name][name].add(asname)
 
             if verbose:
-                logger.info(f'Absolute import of {name} as {asname or name} from {module_name} found.')
+                logger.debug(f'Absolute import of {name} as {asname or name} from {module_name} found.')
 
     def update(self, other: 'Imports') -> None:
         assert isinstance(other, Imports)
@@ -118,7 +118,7 @@ def find_imports(file_name: str) -> tuple[Imports, int]:
 
         elif isinstance(node, ast.ImportFrom):
             if node.level:  # if it's relative import
-                logger.info(f'Relative import from {node.module} found: skipping.')
+                logger.debug(f'Relative import from {node.module} found: skipping.')
                 continue
 
             for name in node.names:

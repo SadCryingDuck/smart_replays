@@ -1297,6 +1297,14 @@ def restart_replay_buffering():
 
 
 # -------------------- script_helpers.py --------------------
+def show_popup_notification(python_exe: str, *args: str) -> None:
+    try:
+        subprocess.Popen([python_exe, __file__, *args])
+    except Exception:
+        _print("Failed to launch popup notification.")
+        _print(traceback.format_exc())
+
+
 def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayModes):
     """
     Plays and shows success / failure notification if it's enabled in notifications settings.
@@ -1318,14 +1326,14 @@ def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayMo
             play_sound(path)
 
         if popup_notifications and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS):
-            subprocess.Popen([python_exe, __file__, "Clip saved", f"Clip saved to {clip_path}"])
+            show_popup_notification(python_exe, "Clip saved", f"Clip saved to {clip_path}")
     else:
         if sound_notifications and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_NOTIFY_CLIPS_ON_FAILURE):
             path = obs.obs_data_get_string(VARIABLES.script_settings, PN.PROP_NOTIFY_CLIPS_ON_FAILURE_PATH)
             play_sound(path)
 
         if popup_notifications and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_POPUP_CLIPS_ON_FAILURE):
-            subprocess.Popen([python_exe, __file__, "Clip not saved", f"More in the logs.", "#C00000"])
+            show_popup_notification(python_exe, "Clip not saved", "More in the logs.", "#C00000")
 
 
 def load_aliases(script_settings_dict: dict):
@@ -1555,7 +1563,8 @@ def on_buffer_recording_stopped_callback(event):
 
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
-    VARIABLES.clip_exe_history.clear()
+    if VARIABLES.clip_exe_history is not None:
+        VARIABLES.clip_exe_history.clear()
 
 
 def on_buffer_save_callback(event):

@@ -54,7 +54,8 @@ def on_buffer_recording_stopped_callback(event):
 
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
-    VARIABLES.clip_exe_history.clear()
+    if VARIABLES.clip_exe_history is not None:
+        VARIABLES.clip_exe_history.clear()
 
 
 def on_buffer_save_callback(event):

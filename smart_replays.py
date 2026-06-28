@@ -32,8 +32,8 @@ from pathlib import Path
 from collections import deque
 from collections import defaultdict
 from urllib.request import urlopen
-from datetime import datetime
 from ctypes import wintypes
+from datetime import datetime
 from contextlib import suppress
 from typing import Any
 
@@ -160,7 +160,7 @@ class NotificationWindow:
 
 
     def animate_frame(self, frame: tk.Frame, target_w, delay: float = 0.00001, speed: int = 3):
-        init_w, init_h = frame.winfo_width(), self.wnd_h
+        init_w = frame.winfo_width()
         speed = speed if init_w < target_w else -speed
 
         for curr_w in range(init_w, target_w, speed):
@@ -379,8 +379,8 @@ def get_latest_release_tag() -> dict | None:  # todo: for future updates
             if response.status == 200:
                 data = json.load(response)
                 return data.get('tag_name')
-    except:
-        _print(f"Failed to check updates.")
+    except Exception:
+        _print("Failed to check updates.")
         _print(traceback.format_exc())
     return None
 
@@ -970,7 +970,7 @@ def check_filename_template_callback(p, prop, data):
     try:
         gen_filename("clipname", obs.obs_data_get_string(data, PN.PROP_CLIPS_FILENAME_TEMPLATE))
         obs.obs_property_set_visible(error_text, False)
-    except:
+    except Exception:
         obs.obs_property_set_visible(error_text, True)
     return True
 
@@ -1047,12 +1047,12 @@ def import_aliases_from_json_callback(*args):
     if not path or not os.path.exists(path) or not os.path.isfile(path):
         return False
 
-    with open(path, "r") as f:
+    with open(path) as f:
         data = f.read()
 
     try:
         data = json.loads(data)
-    except:
+    except Exception:
         return False
 
     arr = obs.obs_data_array_create()
@@ -1102,7 +1102,7 @@ class LASTINPUTINFO(ctypes.Structure):
 
 
 def _print(*values, sep: str | None = None, end: str | None = None, file=None, flush: bool = False):
-    str_time = datetime.now().strftime(f"%d.%m.%Y %H:%M:%S")
+    str_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     print(f"[{str_time}]", *values, sep=sep, end=end, file=file, flush=flush)
 
 
@@ -1356,7 +1356,7 @@ def load_aliases(script_settings_dict: dict):
         try:
             path, name = spl[0].strip(), spl[1].strip()
         except IndexError:
-            raise AliasInvalidFormat(index)
+            raise AliasInvalidFormat(index) from None
 
         path = os.path.expandvars(path)
         if any(i in path for i in CONSTANTS.PATH_PROHIBITED_CHARS) or any(i in name for i in CONSTANTS.FILENAME_PROHIBITED_CHARS):
@@ -1586,7 +1586,7 @@ def on_buffer_save_callback(event):
             Thread(target=restart_replay_buffering, daemon=True).start()
 
         notify(True, path, path_display_mode=path_display_type)
-    except:
+    except Exception:
         _print("An error occurred while moving file to the new destination.")
         _print(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
@@ -1768,7 +1768,7 @@ def script_unload():
 def script_description():
     return f"""
 <div style="font-size: 60pt; text-align: center;">
-Smart Replays 
+Smart Replays
 </div>
 
 <div style="font-size: 12pt; text-align: left;">

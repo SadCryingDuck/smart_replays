@@ -101,7 +101,7 @@ class Imports:
 
 
 def find_imports(file_name: str) -> tuple[Imports, int]:
-    with open(file_name, 'r', encoding='utf-8') as f:
+    with open(file_name, encoding='utf-8') as f:
         tree = ast.parse(f.read(), filename=file_name)
 
     code_starts_from_line_no = 0
@@ -153,7 +153,7 @@ def build_bundle() -> str:
     imports = Imports()
     code_without_imports = ''
 
-    with open('_license_small', 'r', encoding='utf-8') as f:
+    with open('_license_small', encoding='utf-8') as f:
         license_text = f.read() + '\n\n'
 
     for file in FILES_ORDER:
@@ -162,7 +162,7 @@ def build_bundle() -> str:
 
         file_imports, code_start_line = find_imports(file_path)
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             file_code = ''.join(f.readlines()[code_start_line:]).strip().replace(license_text, "")
 
         curr_code = f'# {"-"*20} {file} {"-"*20}\n'
@@ -193,7 +193,7 @@ def main() -> int:
 
     if args.check:
         try:
-            with open(OUTPUT_FILE, 'r', encoding='utf-8') as f:
+            with open(OUTPUT_FILE, encoding='utf-8') as f:
                 current = f.read()
         except FileNotFoundError:
             current = None

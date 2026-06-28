@@ -137,7 +137,7 @@ class NotificationWindow:
 
 
     def animate_frame(self, frame: tk.Frame, target_w, delay: float = 0.00001, speed: int = 3):
-        init_w, init_h = frame.winfo_width(), self.wnd_h
+        init_w = frame.winfo_width()
         speed = speed if init_w < target_w else -speed
 
         for curr_w in range(init_w, target_w, speed):

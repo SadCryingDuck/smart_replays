@@ -85,7 +85,7 @@ def load_aliases(script_settings_dict: dict):
         try:
             path, name = spl[0].strip(), spl[1].strip()
         except IndexError:
-            raise AliasInvalidFormat(index)
+            raise AliasInvalidFormat(index) from None
 
         path = os.path.expandvars(path)
         if any(i in path for i in CONSTANTS.PATH_PROHIBITED_CHARS) or any(i in name for i in CONSTANTS.FILENAME_PROHIBITED_CHARS):

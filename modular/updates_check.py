@@ -27,8 +27,8 @@ def get_latest_release_tag() -> dict | None:  # todo: for future updates
             if response.status == 200:
                 data = json.load(response)
                 return data.get('tag_name')
-    except:
-        _print(f"Failed to check updates.")
+    except Exception:
+        _print("Failed to check updates.")
         _print(traceback.format_exc())
     return None
 

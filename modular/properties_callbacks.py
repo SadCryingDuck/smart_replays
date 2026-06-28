@@ -12,13 +12,12 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-from .exceptions import *
+from .exceptions import AliasInvalidCharacters, AliasInvalidFormat, AliasParsingError, AliasPathAlreadyExists
 from .globals import VARIABLES, CONSTANTS, PN
 from .clipname_gen import gen_filename
 from .obs_related import get_base_path
 from .script_helpers import load_aliases
 
-from datetime import datetime
 from pathlib import Path
 import obspython as obs
 import webbrowser
@@ -98,7 +97,7 @@ def check_filename_template_callback(p, prop, data):
     try:
         gen_filename("clipname", obs.obs_data_get_string(data, PN.PROP_CLIPS_FILENAME_TEMPLATE))
         obs.obs_property_set_visible(error_text, False)
-    except:
+    except Exception:
         obs.obs_property_set_visible(error_text, True)
     return True
 
@@ -175,12 +174,12 @@ def import_aliases_from_json_callback(*args):
     if not path or not os.path.exists(path) or not os.path.isfile(path):
         return False
 
-    with open(path, "r") as f:
+    with open(path) as f:
         data = f.read()
 
     try:
         data = json.loads(data)
-    except:
+    except Exception:
         return False
 
     arr = obs.obs_data_array_create()

@@ -77,7 +77,7 @@ def on_buffer_save_callback(event):
             Thread(target=restart_replay_buffering, daemon=True).start()
 
         notify(True, path, path_display_mode=path_display_type)
-    except:
+    except Exception:
         _print("An error occurred while moving file to the new destination.")
         _print(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)

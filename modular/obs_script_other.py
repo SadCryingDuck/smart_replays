@@ -12,18 +12,14 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-from .globals import VARIABLES, CONSTANTS, ClipNamingModes, VideoNamingModes, PopupPathDisplayModes, PN
+from .globals import VARIABLES, CONSTANTS, ClipNamingModes, PopupPathDisplayModes, PN
 
 from .tech import _print
 from .obs_related import get_base_path
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history
 from .obs_events_callbacks import (on_buffer_save_callback,
                                    on_buffer_recording_started_callback,
-                                   on_buffer_recording_stopped_callback,
-                                   on_video_recording_started_callback,
-                                   on_video_recording_stopping_callback,
-                                   on_video_recording_stopped_callback)
-from .updates_check import check_updates
+                                   on_buffer_recording_stopped_callback)
 from .script_helpers import load_aliases
 from .hotkeys import load_hotkeys
 
@@ -111,7 +107,7 @@ def script_unload():
 def script_description():
     return f"""
 <div style="font-size: 60pt; text-align: center;">
-Smart Replays 
+Smart Replays
 </div>
 
 <div style="font-size: 12pt; text-align: left;">

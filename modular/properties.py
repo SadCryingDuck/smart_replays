@@ -226,17 +226,17 @@ def setup_video_paths_settings(group_obj):
     obs.obs_property_list_add_int(
         p=filename_condition,
         name="the name of an active app (.exe file name) at the moment of video saving",
-        val=1
+        val=VideoNamingModes.CURRENT_PROCESS.value
     )
     obs.obs_property_list_add_int(
         p=filename_condition,
         name="the name of an app (.exe file name) that was active most of the time during the video recording",
-        val=2
+        val=VideoNamingModes.MOST_RECORDED_PROCESS.value
     )
     obs.obs_property_list_add_int(
         p=filename_condition,
         name="the name of the current scene",
-        val=3
+        val=VideoNamingModes.CURRENT_SCENE.value
     )
 
     t = obs.obs_properties_add_text(

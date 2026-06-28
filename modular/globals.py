@@ -35,6 +35,8 @@ class CONSTANTS:
     PATH_PROHIBITED_CHARS = r'"<>*?|%'
     DEFAULT_FILENAME_FORMAT = "%NAME_%d.%m.%Y_%H-%M-%S"
     DEFAULT_CLIP_NAME = "UnknownApp"
+    REPLAY_BUFFER_STOP_TIMEOUT_SECONDS = 5
+    REPLAY_BUFFER_STOP_POLL_INTERVAL_SECONDS = 0.1
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}

@@ -23,6 +23,7 @@ import webbrowser
 import os
 import winsound
 import subprocess
+import shutil
 from tkinter import font as f
 from enum import Enum
 from threading import Lock
@@ -216,6 +217,8 @@ class CONSTANTS:
     PATH_PROHIBITED_CHARS = r'"<>*?|%'
     DEFAULT_FILENAME_FORMAT = "%NAME_%d.%m.%Y_%H-%M-%S"
     DEFAULT_CLIP_NAME = "UnknownApp"
+    REPLAY_BUFFER_STOP_TIMEOUT_SECONDS = 5
+    REPLAY_BUFFER_STOP_POLL_INTERVAL_SECONDS = 0.1
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -589,17 +592,17 @@ def setup_video_paths_settings(group_obj):
     obs.obs_property_list_add_int(
         p=filename_condition,
         name="the name of an active app (.exe file name) at the moment of video saving",
-        val=1
+        val=VideoNamingModes.CURRENT_PROCESS.value
     )
     obs.obs_property_list_add_int(
         p=filename_condition,
         name="the name of an app (.exe file name) that was active most of the time during the video recording",
-        val=2
+        val=VideoNamingModes.MOST_RECORDED_PROCESS.value
     )
     obs.obs_property_list_add_int(
         p=filename_condition,
         name="the name of the current scene",
-        val=3
+        val=VideoNamingModes.CURRENT_SCENE.value
     )
 
     t = obs.obs_properties_add_text(
@@ -1090,6 +1093,7 @@ kernel32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD,
 kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
 
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+EXECUTABLE_PATH_BUFFER_SIZE = 32768
 
 
 class LASTINPUTINFO(ctypes.Structure):
@@ -1124,7 +1128,7 @@ def get_executable_path(pid: int) -> Path:
         raise OSError(f"Process {pid} does not exist.")
 
     try:
-        size = wintypes.DWORD(32768)
+        size = wintypes.DWORD(EXECUTABLE_PATH_BUFFER_SIZE)
         filename_buffer = ctypes.create_unicode_buffer(size.value)
         result = kernel32.QueryFullProcessImageNameW(process_handle, 0, filename_buffer, ctypes.byref(size))
     finally:
@@ -1277,8 +1281,15 @@ def restart_replay_buffering():
     replay_output = obs.obs_frontend_get_replay_buffer_output()
     obs.obs_frontend_replay_buffer_stop()
 
+    deadline = time.monotonic() + CONSTANTS.REPLAY_BUFFER_STOP_TIMEOUT_SECONDS
     while not obs.obs_output_can_begin_data_capture(replay_output, 0):
-        time.sleep(0.1)
+        if time.monotonic() > deadline:
+            _print("Timed out waiting for the replay buffer to stop. Restart aborted.")
+            obs.obs_output_release(replay_output)
+            return
+        time.sleep(CONSTANTS.REPLAY_BUFFER_STOP_POLL_INTERVAL_SECONDS)
+
+    obs.obs_output_release(replay_output)
     _print("Replay buffering stopped.")
     _print("Starting replay buffering...")
     obs.obs_frontend_replay_buffer_start()
@@ -1467,12 +1478,14 @@ def ensure_unique_filename(file_path: str | Path) -> Path:
 def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     old_file_path = get_last_replay_file_name()
     _print(f"Old clip file path: {old_file_path}")
+    if not old_file_path:
+        raise FileNotFoundError("OBS did not return a replay file path.")
 
     clip_name = gen_clip_base_name(mode)
-    ext = old_file_path.split(".")[-1]
+    ext = Path(old_file_path).suffix
     filename_template = obs.obs_data_get_string(VARIABLES.script_settings,
                                                 PN.PROP_CLIPS_FILENAME_TEMPLATE)
-    filename = gen_filename(clip_name, filename_template) + f".{ext}"
+    filename = gen_filename(clip_name, filename_template) + ext
 
     new_folder = Path(get_base_path(script_settings=VARIABLES.script_settings))
     if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_CLIPS_SAVE_TO_FOLDER):
@@ -1483,13 +1496,17 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     new_path = ensure_unique_filename(new_path)
     _print(f"New clip file path: {new_path}")
 
-    os.rename(old_file_path, str(new_path))
+    shutil.move(str(old_file_path), str(new_path))
     _print("Clip file successfully moved.")
     os.utime(new_folder)
 
     if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_CLIPS_CREATE_LINKS):
         links_folder = obs.obs_data_get_string(VARIABLES.script_settings, PN.PROP_CLIPS_LINKS_FOLDER_PATH)
-        create_hard_link(new_path, links_folder)
+        try:
+            create_hard_link(new_path, links_folder)
+        except Exception:
+            _print("Failed to create hard link.")
+            _print(traceback.format_exc())
     return clip_name, new_path
 
 

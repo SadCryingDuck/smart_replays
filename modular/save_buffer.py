@@ -20,17 +20,21 @@ from .tech import _print, create_hard_link
 from pathlib import Path
 import obspython as obs
 import os
+import shutil
+import traceback
 
 
 def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     old_file_path = get_last_replay_file_name()
     _print(f"Old clip file path: {old_file_path}")
+    if not old_file_path:
+        raise FileNotFoundError("OBS did not return a replay file path.")
 
     clip_name = gen_clip_base_name(mode)
-    ext = old_file_path.split(".")[-1]
+    ext = Path(old_file_path).suffix
     filename_template = obs.obs_data_get_string(VARIABLES.script_settings,
                                                 PN.PROP_CLIPS_FILENAME_TEMPLATE)
-    filename = gen_filename(clip_name, filename_template) + f".{ext}"
+    filename = gen_filename(clip_name, filename_template) + ext
 
     new_folder = Path(get_base_path(script_settings=VARIABLES.script_settings))
     if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_CLIPS_SAVE_TO_FOLDER):
@@ -41,13 +45,17 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     new_path = ensure_unique_filename(new_path)
     _print(f"New clip file path: {new_path}")
 
-    os.rename(old_file_path, str(new_path))
+    shutil.move(str(old_file_path), str(new_path))
     _print("Clip file successfully moved.")
     os.utime(new_folder)
 
     if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_CLIPS_CREATE_LINKS):
         links_folder = obs.obs_data_get_string(VARIABLES.script_settings, PN.PROP_CLIPS_LINKS_FOLDER_PATH)
-        create_hard_link(new_path, links_folder)
+        try:
+            create_hard_link(new_path, links_folder)
+        except Exception:
+            _print("Failed to create hard link.")
+            _print(traceback.format_exc())
     return clip_name, new_path
 
 

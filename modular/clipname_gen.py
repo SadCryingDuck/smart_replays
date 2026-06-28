@@ -14,7 +14,7 @@
 
 from .globals import VARIABLES, CONSTANTS, PN, ClipNamingModes
 
-from .tech import get_active_window_pid, get_executable_path, _print
+from .tech import get_active_window_pid, get_executable_path, log
 from .obs_related import get_current_scene_name
 
 import obspython as obs
@@ -32,7 +32,7 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
                  If a value is provided, it overrides the configs value.
     :return: The base name of the clip based on the selected naming mode.
     """
-    _print("Generating clip base name...")
+    log.debug("Generating clip base name...")
     mode = obs.obs_data_get_int(VARIABLES.script_settings, PN.PROP_CLIPS_NAMING_MODE) if mode is None else mode
     mode = ClipNamingModes(mode)
 
@@ -45,22 +45,22 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
             try:
                 executable_path = get_executable_path(get_active_window_pid())
             except Exception:
-                _print("Failed to get the active window executable path.")
-                _print(traceback.format_exc())
+                log.warning("Failed to get the active window executable path.")
+                log.debug(traceback.format_exc())
 
         if executable_path is None:
-            _print(f"Falling back to default clip name: {CONSTANTS.DEFAULT_CLIP_NAME}")
+            log.debug(f"Falling back to default clip name: {CONSTANTS.DEFAULT_CLIP_NAME}")
             return CONSTANTS.DEFAULT_CLIP_NAME
 
         if alias := get_alias(executable_path, VARIABLES.aliases):
-            _print(f"Alias found: {alias}.")
+            log.debug(f"Alias found: {alias}.")
             return alias
 
-        _print(f"No alias found. Using executable name: {executable_path.stem}")
+        log.debug(f"No alias found. Using executable name: {executable_path.stem}")
         return executable_path.stem
 
     else:
-        _print("Clip filename depends on the name of the current scene name.")
+        log.debug("Clip filename depends on the name of the current scene name.")
         return get_current_scene_name()
 
 
@@ -106,8 +106,8 @@ def gen_filename(base_name: str, template: str, dt: datetime | None = None) -> s
     try:
         filename = dt.strftime(filename)
     except Exception as e:
-        _print(f"An error occurred while generating the file name using the template {template}.")
-        _print(traceback.format_exc())
+        log.error(f"An error occurred while generating the file name using the template {template}.")
+        log.debug(traceback.format_exc())
         raise ValueError from e
 
     if any(i in filename for i in CONSTANTS.FILENAME_PROHIBITED_CHARS):

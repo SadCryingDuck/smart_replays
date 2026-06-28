@@ -17,8 +17,9 @@ from .globals import user32
 import ctypes
 from ctypes import wintypes
 import winsound
+import logging
+import sys
 from pathlib import Path
-from datetime import datetime
 from contextlib import suppress
 import os
 
@@ -43,9 +44,17 @@ class LASTINPUTINFO(ctypes.Structure):
                 ("dwTime", wintypes.DWORD)]
 
 
-def _print(*values, sep: str | None = None, end: str | None = None, file=None, flush: bool = False):
-    str_time = datetime.now().strftime(f"%d.%m.%Y %H:%M:%S")
-    print(f"[{str_time}]", *values, sep=sep, end=end, file=file, flush=flush)
+log = logging.getLogger("SmartReplays")
+
+
+def setup_logging(debug: bool) -> None:
+    log.setLevel(logging.DEBUG if debug else logging.WARNING)
+    if not log.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter("[%(asctime)s] [SmartReplays] %(message)s",
+                                                datefmt="%d.%m.%Y %H:%M:%S"))
+        log.addHandler(handler)
+    log.propagate = False
 
 
 def get_active_window_pid() -> int | None:

@@ -488,6 +488,12 @@ To disable scheduled restarts, set the value to 0.""",
         description="Restart replay buffer after clip saving"
     )
 
+    obs.obs_properties_add_bool(
+        props=group_obj,
+        name=PN.PROP_DEBUG_MODE,
+        description="Enable debug logging"
+    )
+
 
 def script_properties():
     p = obs.obs_properties_create()  # main properties object

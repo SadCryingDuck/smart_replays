@@ -12,19 +12,16 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-from .globals import VARIABLES, CONSTANTS, ClipNamingModes, VideoNamingModes, PopupPathDisplayModes, PN
+from .globals import VARIABLES, CONSTANTS, ClipNamingModes, PopupPathDisplayModes, PN
 
-from .tech import _print
+from .tech import log, setup_logging
 from .obs_related import get_base_path
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history
 from .obs_events_callbacks import (on_buffer_save_callback,
                                    on_buffer_recording_started_callback,
-                                   on_buffer_recording_stopped_callback,
-                                   on_video_recording_started_callback,
-                                   on_video_recording_stopping_callback,
-                                   on_video_recording_stopped_callback)
-from .updates_check import check_updates
+                                   on_buffer_recording_stopped_callback)
 from .script_helpers import load_aliases
+from .updates_check import check_updates
 from .hotkeys import load_hotkeys
 
 import obspython as obs
@@ -32,7 +29,7 @@ import json
 
 
 def script_defaults(s):
-    _print("Loading default values...")
+    log.debug("Loading default values...")
     obs.obs_data_set_default_string(s, PN.PROP_CLIPS_BASE_PATH, str(get_base_path()))
     obs.obs_data_set_default_int(s, PN.PROP_CLIPS_NAMING_MODE, ClipNamingModes.CURRENT_PROCESS.value)
     obs.obs_data_set_default_string(s, PN.PROP_CLIPS_FILENAME_TEMPLATE, CONSTANTS.DEFAULT_FILENAME_FORMAT)
@@ -51,6 +48,7 @@ def script_defaults(s):
 
     obs.obs_data_set_default_int(s, PN.PROP_RESTART_BUFFER_LOOP, 3600)
     obs.obs_data_set_default_bool(s, PN.PROP_RESTART_BUFFER, True)
+    obs.obs_data_set_default_bool(s, PN.PROP_DEBUG_MODE, False)
 
     arr = obs.obs_data_array_create()
     for index, i in enumerate(CONSTANTS.DEFAULT_ALIASES):
@@ -58,30 +56,32 @@ def script_defaults(s):
         obs.obs_data_array_insert(arr, index, data)
 
     obs.obs_data_set_default_array(s, PN.PROP_ALIASES_LIST, arr)
-    _print("The default values are set.")
+    log.debug("The default values are set.")
 
 
 def script_update(settings):
-    _print("Updating script...")
-
     VARIABLES.script_settings = settings
-    _print(obs.obs_data_get_json(VARIABLES.script_settings))
-    _print("Script updated")
+    setup_logging(obs.obs_data_get_bool(settings, PN.PROP_DEBUG_MODE))
+
+    log.debug("Updating script...")
+    log.debug(obs.obs_data_get_json(VARIABLES.script_settings))
+    log.debug("Script updated")
 
 
 def script_save(settings):
-    _print("Saving script...")
+    log.debug("Saving script...")
 
     for key_name in VARIABLES.hotkey_ids:
         k = obs.obs_hotkey_save(VARIABLES.hotkey_ids[key_name])
         obs.obs_data_set_array(settings, key_name, k)
-    _print("Script saved")
+    log.debug("Script saved")
 
 
 def script_load(script_settings):
-    _print("Loading script...")
     VARIABLES.script_settings = script_settings
-    # VARIABLES.update_available = check_updates(CONSTANTS.VERSION)  # todo: for future updates
+    setup_logging(obs.obs_data_get_bool(script_settings, PN.PROP_DEBUG_MODE))
+    log.debug("Loading script...")
+    VARIABLES.update_available = check_updates(CONSTANTS.VERSION)
 
     json_settings = json.loads(obs.obs_data_get_json(script_settings))
     load_aliases(json_settings)
@@ -98,20 +98,20 @@ def script_load(script_settings):
     if obs.obs_frontend_replay_buffer_active():
         on_buffer_recording_started_callback(obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED)
 
-    _print("Script loaded.")
+    log.debug("Script loaded.")
 
 
 def script_unload():
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
 
-    _print("Script unloaded.")
+    log.debug("Script unloaded.")
 
 
 def script_description():
     return f"""
 <div style="font-size: 60pt; text-align: center;">
-Smart Replays 
+Smart Replays
 </div>
 
 <div style="font-size: 12pt; text-align: left;">

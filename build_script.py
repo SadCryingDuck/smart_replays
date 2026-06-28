@@ -12,8 +12,10 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
+import argparse
 import ast
 import logging
+import sys
 from typing import TypeAlias
 
 
@@ -48,7 +50,7 @@ class Imports:
                 self.imports[module_name].add(module_asname)
 
             if verbose:
-                logger.info(f'Absolute import of {module_name} as {module_asname or module_name} added.')
+                logger.debug(f'Absolute import of {module_name} as {module_asname or module_name} added.')
 
         else:  # if it is from import
             if module_name not in self.from_imports:
@@ -59,7 +61,7 @@ class Imports:
                 self.from_imports[module_name][name].add(asname)
 
             if verbose:
-                logger.info(f'Absolute import of {name} as {asname or name} from {module_name} found.')
+                logger.debug(f'Absolute import of {name} as {asname or name} from {module_name} found.')
 
     def update(self, other: 'Imports') -> None:
         assert isinstance(other, Imports)
@@ -78,18 +80,14 @@ class Imports:
         for module_name, module_as_names in self.imports.items():
             if None in module_as_names:
                 result += f'import {module_name}\n'
-            for asname in module_as_names:
-                if asname is None:
-                    continue
+            for asname in sorted(a for a in module_as_names if a is not None):
                 result += f'import {module_name} as {asname}\n'
 
         for module_name, names_dicts in self.from_imports.items():
             for name, asnames in names_dicts.items():
                 if None in asnames:
                     result += f'from {module_name} import {name}\n'
-                for asname in asnames:
-                    if asname is None:
-                        continue
+                for asname in sorted(a for a in asnames if a is not None):
                     result += f'from {module_name} import {name} as {asname}\n'
         return result.strip()
 
@@ -103,7 +101,7 @@ class Imports:
 
 
 def find_imports(file_name: str) -> tuple[Imports, int]:
-    with open(file_name, 'r', encoding='utf-8') as f:
+    with open(file_name, encoding='utf-8') as f:
         tree = ast.parse(f.read(), filename=file_name)
 
     code_starts_from_line_no = 0
@@ -120,7 +118,7 @@ def find_imports(file_name: str) -> tuple[Imports, int]:
 
         elif isinstance(node, ast.ImportFrom):
             if node.level:  # if it's relative import
-                logger.info(f'Relative import from {node.module} found: skipping.')
+                logger.debug(f'Relative import from {node.module} found: skipping.')
                 continue
 
             for name in node.names:
@@ -148,12 +146,14 @@ FILES_ORDER = ['ui',
                'hotkeys',
                'obs_script_other']
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+OUTPUT_FILE = 'smart_replays.py'
+
+
+def build_bundle() -> str:
     imports = Imports()
     code_without_imports = ''
 
-    with open('_license_small', 'r', encoding='utf-8') as f:
+    with open('_license_small', encoding='utf-8') as f:
         license_text = f.read() + '\n\n'
 
     for file in FILES_ORDER:
@@ -162,7 +162,7 @@ if __name__ == '__main__':
 
         file_imports, code_start_line = find_imports(file_path)
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             file_code = ''.join(f.readlines()[code_start_line:]).strip().replace(license_text, "")
 
         curr_code = f'# {"-"*20} {file} {"-"*20}\n'
@@ -179,6 +179,37 @@ if __name__ == '__main__':
     )
     total_code += '\n\n\n'
     total_code += code_without_imports.strip()
+    return total_code
 
-    with open('smart_replays.py', 'w', encoding='utf-8') as f:
-        f.write(total_code)
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description='Build smart_replays.py from the modular sources.')
+    parser.add_argument('--check', action='store_true',
+                        help='Check the bundle is up to date without writing it.')
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
+    bundle = build_bundle()
+
+    if args.check:
+        try:
+            with open(OUTPUT_FILE, encoding='utf-8') as f:
+                current = f.read()
+        except FileNotFoundError:
+            current = None
+
+        if current != bundle:
+            logging.error(f'{OUTPUT_FILE} is out of date, run the build and commit it.')
+            return 1
+
+        logging.info(f'{OUTPUT_FILE} is up to date.')
+        return 0
+
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+        f.write(bundle)
+    logging.info(f'Wrote {OUTPUT_FILE}.')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

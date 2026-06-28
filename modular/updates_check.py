@@ -12,30 +12,30 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-from .tech import _print
+from .tech import log
 
 from urllib.request import urlopen
 import json
 import traceback
 
 
-def get_latest_release_tag() -> dict | None:  # todo: for future updates
-    url = "https://api.github.com/repos/qvvonk/smart_replays/releases/latest"
+def get_latest_release_tag() -> str | None:
+    url = "https://api.github.com/repos/SadCryingDuck/smart_replays/releases/latest"
 
     try:
         with urlopen(url, timeout=2) as response:
             if response.status == 200:
                 data = json.load(response)
                 return data.get('tag_name')
-    except:
-        _print(f"Failed to check updates.")
-        _print(traceback.format_exc())
+    except Exception:
+        log.warning("Failed to check updates.")
+        log.debug(traceback.format_exc())
     return None
 
 
-def check_updates(current_version: str):  # todo: for future updates
+def check_updates(current_version: str) -> bool:
     latest_version = get_latest_release_tag()
-    _print(latest_version)
+    log.debug(latest_version)
     if latest_version and f'v{current_version}' != latest_version:
         return True
     return False

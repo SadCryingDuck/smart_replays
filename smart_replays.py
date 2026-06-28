@@ -22,6 +22,7 @@ import traceback
 import webbrowser
 import os
 import winsound
+import logging
 import subprocess
 import shutil
 from tkinter import font as f
@@ -32,10 +33,10 @@ from pathlib import Path
 from collections import deque
 from collections import defaultdict
 from urllib.request import urlopen
-from datetime import datetime
 from ctypes import wintypes
 from contextlib import suppress
 from typing import Any
+from datetime import datetime
 
 if __name__ != '__main__':
     import obspython as obs
@@ -160,7 +161,7 @@ class NotificationWindow:
 
 
     def animate_frame(self, frame: tk.Frame, target_w, delay: float = 0.00001, speed: int = 3):
-        init_w, init_h = frame.winfo_width(), self.wnd_h
+        init_w = frame.winfo_width()
         speed = speed if init_w < target_w else -speed
 
         for curr_w in range(init_w, target_w, speed):
@@ -207,7 +208,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.0.8.2"
+    VERSION = "1.1.0"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -327,6 +328,7 @@ class PropertiesNames:
     PROP_RESTART_BUFFER = "restart_buffer"
     PROP_RESTART_BUFFER_LOOP = "restart_buffer_loop"
     TXT_RESTART_BUFFER_LOOP = "restart_buffer_loop_desc"
+    PROP_DEBUG_MODE = "debug_mode"
 
     # Hotkeys
     HK_SAVE_BUFFER_MODE_1 = "save_buffer_force_mode_1"
@@ -371,23 +373,23 @@ class AliasInvalidFormat(AliasParsingError):
 
 
 # -------------------- updates_check.py --------------------
-def get_latest_release_tag() -> dict | None:  # todo: for future updates
-    url = "https://api.github.com/repos/qvvonk/smart_replays/releases/latest"
+def get_latest_release_tag() -> str | None:
+    url = "https://api.github.com/repos/SadCryingDuck/smart_replays/releases/latest"
 
     try:
         with urlopen(url, timeout=2) as response:
             if response.status == 200:
                 data = json.load(response)
                 return data.get('tag_name')
-    except:
-        _print(f"Failed to check updates.")
-        _print(traceback.format_exc())
+    except Exception:
+        log.warning("Failed to check updates.")
+        log.debug(traceback.format_exc())
     return None
 
 
-def check_updates(current_version: str):  # todo: for future updates
+def check_updates(current_version: str) -> bool:
     latest_version = get_latest_release_tag()
-    _print(latest_version)
+    log.debug(latest_version)
     if latest_version and f'v{current_version}' != latest_version:
         return True
     return False
@@ -854,6 +856,12 @@ To disable scheduled restarts, set the value to 0.""",
         description="Restart replay buffer after clip saving"
     )
 
+    obs.obs_properties_add_bool(
+        props=group_obj,
+        name=PN.PROP_DEBUG_MODE,
+        description="Enable debug logging"
+    )
+
 
 def script_properties():
     p = obs.obs_properties_create()  # main properties object
@@ -970,7 +978,7 @@ def check_filename_template_callback(p, prop, data):
     try:
         gen_filename("clipname", obs.obs_data_get_string(data, PN.PROP_CLIPS_FILENAME_TEMPLATE))
         obs.obs_property_set_visible(error_text, False)
-    except:
+    except Exception:
         obs.obs_property_set_visible(error_text, True)
     return True
 
@@ -1047,12 +1055,12 @@ def import_aliases_from_json_callback(*args):
     if not path or not os.path.exists(path) or not os.path.isfile(path):
         return False
 
-    with open(path, "r") as f:
+    with open(path) as f:
         data = f.read()
 
     try:
         data = json.loads(data)
-    except:
+    except Exception:
         return False
 
     arr = obs.obs_data_array_create()
@@ -1101,9 +1109,17 @@ class LASTINPUTINFO(ctypes.Structure):
                 ("dwTime", wintypes.DWORD)]
 
 
-def _print(*values, sep: str | None = None, end: str | None = None, file=None, flush: bool = False):
-    str_time = datetime.now().strftime(f"%d.%m.%Y %H:%M:%S")
-    print(f"[{str_time}]", *values, sep=sep, end=end, file=file, flush=flush)
+log = logging.getLogger("SmartReplays")
+
+
+def setup_logging(debug: bool) -> None:
+    log.setLevel(logging.DEBUG if debug else logging.WARNING)
+    if not log.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter("[%(asctime)s] [SmartReplays] %(message)s",
+                                                datefmt="%d.%m.%Y %H:%M:%S"))
+        log.addHandler(handler)
+    log.propagate = False
 
 
 def get_active_window_pid() -> int | None:
@@ -1277,23 +1293,23 @@ def restart_replay_buffering():
     """
     Restarts replay buffering, obviously -_-
     """
-    _print("Stopping replay buffering...")
+    log.debug("Stopping replay buffering...")
     replay_output = obs.obs_frontend_get_replay_buffer_output()
     obs.obs_frontend_replay_buffer_stop()
 
     deadline = time.monotonic() + CONSTANTS.REPLAY_BUFFER_STOP_TIMEOUT_SECONDS
     while not obs.obs_output_can_begin_data_capture(replay_output, 0):
         if time.monotonic() > deadline:
-            _print("Timed out waiting for the replay buffer to stop. Restart aborted.")
+            log.warning("Timed out waiting for the replay buffer to stop. Restart aborted.")
             obs.obs_output_release(replay_output)
             return
         time.sleep(CONSTANTS.REPLAY_BUFFER_STOP_POLL_INTERVAL_SECONDS)
 
     obs.obs_output_release(replay_output)
-    _print("Replay buffering stopped.")
-    _print("Starting replay buffering...")
+    log.debug("Replay buffering stopped.")
+    log.debug("Starting replay buffering...")
     obs.obs_frontend_replay_buffer_start()
-    _print("Replay buffering started.")
+    log.debug("Replay buffering started.")
 
 
 # -------------------- script_helpers.py --------------------
@@ -1301,8 +1317,8 @@ def show_popup_notification(python_exe: str, *args: str) -> None:
     try:
         subprocess.Popen([python_exe, __file__, *args])
     except Exception:
-        _print("Failed to launch popup notification.")
-        _print(traceback.format_exc())
+        log.warning("Failed to launch popup notification.")
+        log.debug(traceback.format_exc())
 
 
 def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayModes):
@@ -1343,7 +1359,7 @@ def load_aliases(script_settings_dict: dict):
 
     :param script_settings_dict: Script settings as dict.
     """
-    _print("Loading aliases...")
+    log.debug("Loading aliases...")
 
     new_aliases = {}
     aliases_list = script_settings_dict.get(PN.PROP_ALIASES_LIST)
@@ -1356,7 +1372,7 @@ def load_aliases(script_settings_dict: dict):
         try:
             path, name = spl[0].strip(), spl[1].strip()
         except IndexError:
-            raise AliasInvalidFormat(index)
+            raise AliasInvalidFormat(index) from None
 
         path = os.path.expandvars(path)
         if any(i in path for i in CONSTANTS.PATH_PROHIBITED_CHARS) or any(i in name for i in CONSTANTS.FILENAME_PROHIBITED_CHARS):
@@ -1368,7 +1384,7 @@ def load_aliases(script_settings_dict: dict):
         new_aliases[Path(path)] = name
 
     VARIABLES.aliases = new_aliases
-    _print(f"{len(VARIABLES.aliases)} aliases are loaded.")
+    log.debug(f"{len(VARIABLES.aliases)} aliases are loaded.")
 
 
 # -------------------- clipname_gen.py --------------------
@@ -1381,7 +1397,7 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
                  If a value is provided, it overrides the configs value.
     :return: The base name of the clip based on the selected naming mode.
     """
-    _print("Generating clip base name...")
+    log.debug("Generating clip base name...")
     mode = obs.obs_data_get_int(VARIABLES.script_settings, PN.PROP_CLIPS_NAMING_MODE) if mode is None else mode
     mode = ClipNamingModes(mode)
 
@@ -1394,22 +1410,22 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
             try:
                 executable_path = get_executable_path(get_active_window_pid())
             except Exception:
-                _print("Failed to get the active window executable path.")
-                _print(traceback.format_exc())
+                log.warning("Failed to get the active window executable path.")
+                log.debug(traceback.format_exc())
 
         if executable_path is None:
-            _print(f"Falling back to default clip name: {CONSTANTS.DEFAULT_CLIP_NAME}")
+            log.debug(f"Falling back to default clip name: {CONSTANTS.DEFAULT_CLIP_NAME}")
             return CONSTANTS.DEFAULT_CLIP_NAME
 
         if alias := get_alias(executable_path, VARIABLES.aliases):
-            _print(f"Alias found: {alias}.")
+            log.debug(f"Alias found: {alias}.")
             return alias
 
-        _print(f"No alias found. Using executable name: {executable_path.stem}")
+        log.debug(f"No alias found. Using executable name: {executable_path.stem}")
         return executable_path.stem
 
     else:
-        _print("Clip filename depends on the name of the current scene name.")
+        log.debug("Clip filename depends on the name of the current scene name.")
         return get_current_scene_name()
 
 
@@ -1455,8 +1471,8 @@ def gen_filename(base_name: str, template: str, dt: datetime | None = None) -> s
     try:
         filename = dt.strftime(filename)
     except Exception as e:
-        _print(f"An error occurred while generating the file name using the template {template}.")
-        _print(traceback.format_exc())
+        log.error(f"An error occurred while generating the file name using the template {template}.")
+        log.debug(traceback.format_exc())
         raise ValueError from e
 
     if any(i in filename for i in CONSTANTS.FILENAME_PROHIBITED_CHARS):
@@ -1485,7 +1501,7 @@ def ensure_unique_filename(file_path: str | Path) -> Path:
 # -------------------- save_buffer.py --------------------
 def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     old_file_path = get_last_replay_file_name()
-    _print(f"Old clip file path: {old_file_path}")
+    log.debug(f"Old clip file path: {old_file_path}")
     if not old_file_path:
         raise FileNotFoundError("OBS did not return a replay file path.")
 
@@ -1502,10 +1518,10 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     os.makedirs(str(new_folder), exist_ok=True)
     new_path = new_folder / filename
     new_path = ensure_unique_filename(new_path)
-    _print(f"New clip file path: {new_path}")
+    log.debug(f"New clip file path: {new_path}")
 
     shutil.move(str(old_file_path), str(new_path))
-    _print("Clip file successfully moved.")
+    log.debug("Clip file successfully moved.")
     os.utime(new_folder)
 
     if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_CLIPS_CREATE_LINKS):
@@ -1513,8 +1529,8 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
         try:
             create_hard_link(new_path, links_folder)
         except Exception:
-            _print("Failed to create hard link.")
-            _print(traceback.format_exc())
+            log.warning("Failed to create hard link.")
+            log.debug(traceback.format_exc())
     return clip_name, new_path
 
 
@@ -1545,7 +1561,7 @@ def on_buffer_recording_started_callback(event):
 
     # Reset and restart exe history
     VARIABLES.clip_exe_history = deque([], maxlen=max(1, get_replay_buffer_max_time()))
-    _print(f"Exe history deque created. Maxlen={VARIABLES.clip_exe_history.maxlen}.")
+    log.debug(f"Exe history deque created. Maxlen={VARIABLES.clip_exe_history.maxlen}.")
     obs.timer_add(append_clip_exe_history, 1000)
 
     # Start replay buffer auto restart loop.
@@ -1575,7 +1591,7 @@ def on_buffer_save_callback(event):
                                              PN.PROP_POPUP_PATH_DISPLAY_MODE)
     path_display_type = PopupPathDisplayModes(path_display_type)
 
-    _print(f"{'SAVING BUFFER':->50}")
+    log.debug(f"{'SAVING BUFFER':->50}")
 
     try:
         clip_name, path = move_clip_file(mode=VARIABLES.force_mode)
@@ -1586,15 +1602,15 @@ def on_buffer_save_callback(event):
             Thread(target=restart_replay_buffering, daemon=True).start()
 
         notify(True, path, path_display_mode=path_display_type)
-    except:
-        _print("An error occurred while moving file to the new destination.")
-        _print(traceback.format_exc())
+    except Exception:
+        log.error("An error occurred while moving file to the new destination.")
+        log.debug(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
     finally:
         VARIABLES.force_mode = None
         if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
             CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
-    _print("-" * 50)
+    log.debug("-" * 50)
 
 
 def on_video_recording_started_callback(event):  # todo: for future updates
@@ -1626,7 +1642,7 @@ def restart_replay_buffering_callback():
 
     This callback is only called by the obs timer.
     """
-    _print("Restart replay buffering callback.")
+    log.debug("Restart replay buffering callback.")
     obs.timer_remove(restart_replay_buffering_callback)
 
     replay_length = get_replay_buffer_max_time()
@@ -1635,7 +1651,7 @@ def restart_replay_buffering_callback():
         next_call = int((replay_length - last_input_time) * 1000)
         next_call = next_call if next_call >= 2000 else 2000
 
-        _print(f"Replay length ({replay_length}s) is greater then time since last input ({last_input_time}s). Next call in {next_call / 1000}s.")
+        log.debug(f"Replay length ({replay_length}s) is greater then time since last input ({last_input_time}s). Next call in {next_call / 1000}s.")
         obs.timer_add(restart_replay_buffering_callback, next_call)
         return
 
@@ -1689,7 +1705,7 @@ def load_hotkeys():
 
 # -------------------- obs_script_other.py --------------------
 def script_defaults(s):
-    _print("Loading default values...")
+    log.debug("Loading default values...")
     obs.obs_data_set_default_string(s, PN.PROP_CLIPS_BASE_PATH, str(get_base_path()))
     obs.obs_data_set_default_int(s, PN.PROP_CLIPS_NAMING_MODE, ClipNamingModes.CURRENT_PROCESS.value)
     obs.obs_data_set_default_string(s, PN.PROP_CLIPS_FILENAME_TEMPLATE, CONSTANTS.DEFAULT_FILENAME_FORMAT)
@@ -1708,6 +1724,7 @@ def script_defaults(s):
 
     obs.obs_data_set_default_int(s, PN.PROP_RESTART_BUFFER_LOOP, 3600)
     obs.obs_data_set_default_bool(s, PN.PROP_RESTART_BUFFER, True)
+    obs.obs_data_set_default_bool(s, PN.PROP_DEBUG_MODE, False)
 
     arr = obs.obs_data_array_create()
     for index, i in enumerate(CONSTANTS.DEFAULT_ALIASES):
@@ -1715,30 +1732,32 @@ def script_defaults(s):
         obs.obs_data_array_insert(arr, index, data)
 
     obs.obs_data_set_default_array(s, PN.PROP_ALIASES_LIST, arr)
-    _print("The default values are set.")
+    log.debug("The default values are set.")
 
 
 def script_update(settings):
-    _print("Updating script...")
-
     VARIABLES.script_settings = settings
-    _print(obs.obs_data_get_json(VARIABLES.script_settings))
-    _print("Script updated")
+    setup_logging(obs.obs_data_get_bool(settings, PN.PROP_DEBUG_MODE))
+
+    log.debug("Updating script...")
+    log.debug(obs.obs_data_get_json(VARIABLES.script_settings))
+    log.debug("Script updated")
 
 
 def script_save(settings):
-    _print("Saving script...")
+    log.debug("Saving script...")
 
     for key_name in VARIABLES.hotkey_ids:
         k = obs.obs_hotkey_save(VARIABLES.hotkey_ids[key_name])
         obs.obs_data_set_array(settings, key_name, k)
-    _print("Script saved")
+    log.debug("Script saved")
 
 
 def script_load(script_settings):
-    _print("Loading script...")
     VARIABLES.script_settings = script_settings
-    # VARIABLES.update_available = check_updates(CONSTANTS.VERSION)  # todo: for future updates
+    setup_logging(obs.obs_data_get_bool(script_settings, PN.PROP_DEBUG_MODE))
+    log.debug("Loading script...")
+    VARIABLES.update_available = check_updates(CONSTANTS.VERSION)
 
     json_settings = json.loads(obs.obs_data_get_json(script_settings))
     load_aliases(json_settings)
@@ -1755,20 +1774,20 @@ def script_load(script_settings):
     if obs.obs_frontend_replay_buffer_active():
         on_buffer_recording_started_callback(obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED)
 
-    _print("Script loaded.")
+    log.debug("Script loaded.")
 
 
 def script_unload():
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
 
-    _print("Script unloaded.")
+    log.debug("Script unloaded.")
 
 
 def script_description():
     return f"""
 <div style="font-size: 60pt; text-align: center;">
-Smart Replays 
+Smart Replays
 </div>
 
 <div style="font-size: 12pt; text-align: left;">

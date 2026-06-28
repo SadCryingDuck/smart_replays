@@ -19,8 +19,8 @@ import json
 import traceback
 
 
-def get_latest_release_tag() -> dict | None:  # todo: for future updates
-    url = "https://api.github.com/repos/qvvonk/smart_replays/releases/latest"
+def get_latest_release_tag() -> str | None:
+    url = "https://api.github.com/repos/SadCryingDuck/smart_replays/releases/latest"
 
     try:
         with urlopen(url, timeout=2) as response:
@@ -33,7 +33,7 @@ def get_latest_release_tag() -> dict | None:  # todo: for future updates
     return None
 
 
-def check_updates(current_version: str):  # todo: for future updates
+def check_updates(current_version: str) -> bool:
     latest_version = get_latest_release_tag()
     log.debug(latest_version)
     if latest_version and f'v{current_version}' != latest_version:

@@ -373,8 +373,8 @@ class AliasInvalidFormat(AliasParsingError):
 
 
 # -------------------- updates_check.py --------------------
-def get_latest_release_tag() -> dict | None:  # todo: for future updates
-    url = "https://api.github.com/repos/qvvonk/smart_replays/releases/latest"
+def get_latest_release_tag() -> str | None:
+    url = "https://api.github.com/repos/SadCryingDuck/smart_replays/releases/latest"
 
     try:
         with urlopen(url, timeout=2) as response:
@@ -387,7 +387,7 @@ def get_latest_release_tag() -> dict | None:  # todo: for future updates
     return None
 
 
-def check_updates(current_version: str):  # todo: for future updates
+def check_updates(current_version: str) -> bool:
     latest_version = get_latest_release_tag()
     log.debug(latest_version)
     if latest_version and f'v{current_version}' != latest_version:
@@ -1757,7 +1757,7 @@ def script_load(script_settings):
     VARIABLES.script_settings = script_settings
     setup_logging(obs.obs_data_get_bool(script_settings, PN.PROP_DEBUG_MODE))
     log.debug("Loading script...")
-    # VARIABLES.update_available = check_updates(CONSTANTS.VERSION)  # todo: for future updates
+    VARIABLES.update_available = check_updates(CONSTANTS.VERSION)
 
     json_settings = json.loads(obs.obs_data_get_json(script_settings))
     load_aliases(json_settings)

@@ -233,7 +233,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.2.3"
+    VERSION = "1.2.4"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -1012,6 +1012,7 @@ def update_aliases_callback(p, prop, data):
     for index, alias in enumerate(settings_json[PN.PROP_ALIASES_LIST]):
         alias_data = obs.obs_data_create_from_json(json.dumps(alias))
         obs.obs_data_array_insert(new_aliases_array, index, alias_data)
+        obs.obs_data_release(alias_data)
 
     obs.obs_data_set_array(data, PN.PROP_ALIASES_LIST, new_aliases_array)
     obs.obs_data_array_release(new_aliases_array)
@@ -1117,8 +1118,10 @@ def import_aliases_from_json_callback(*args):
     for index, i in enumerate(data):
         item = obs.obs_data_create_from_json(json.dumps(i))
         obs.obs_data_array_insert(arr, index, item)
+        obs.obs_data_release(item)
 
     obs.obs_data_set_array(VARIABLES.script_settings, PN.PROP_ALIASES_LIST, arr)
+    obs.obs_data_array_release(arr)
     return True
 
 
@@ -1289,13 +1292,16 @@ def get_last_replay_file_name() -> str:
     Returns the last saved buffer file name.
     """
     replay_buffer = obs.obs_frontend_get_replay_buffer_output()
-    cd = obs.calldata_create()
-    proc_handler = obs.obs_output_get_proc_handler(replay_buffer)
-    obs.proc_handler_call(proc_handler, 'get_last_replay', cd)
-    path = obs.calldata_string(cd, 'path')
-    obs.calldata_destroy(cd)
-    obs.obs_output_release(replay_buffer)
-    return path
+    try:
+        cd = obs.calldata_create()
+        try:
+            proc_handler = obs.obs_output_get_proc_handler(replay_buffer)
+            obs.proc_handler_call(proc_handler, 'get_last_replay', cd)
+            return obs.calldata_string(cd, 'path')
+        finally:
+            obs.calldata_destroy(cd)
+    finally:
+        obs.obs_output_release(replay_buffer)
 
 
 def get_current_scene_name() -> str:
@@ -1303,9 +1309,10 @@ def get_current_scene_name() -> str:
     Returns the current OBS scene name.
     """
     current_scene = obs.obs_frontend_get_current_scene()
-    name = obs.obs_source_get_name(current_scene)
-    obs.obs_source_release(current_scene)
-    return name
+    try:
+        return obs.obs_source_get_name(current_scene)
+    finally:
+        obs.obs_source_release(current_scene)
 
 
 def get_replay_buffer_max_time() -> int:
@@ -1354,8 +1361,10 @@ def begin_restart_polling():
 
 def start_buffer_when_ready():
     replay_output = obs.obs_frontend_get_replay_buffer_output()
-    ready = obs.obs_output_can_begin_data_capture(replay_output, 0)
-    obs.obs_output_release(replay_output)
+    try:
+        ready = obs.obs_output_can_begin_data_capture(replay_output, 0)
+    finally:
+        obs.obs_output_release(replay_output)
 
     if ready:
         obs.timer_remove(start_buffer_when_ready)
@@ -1790,8 +1799,10 @@ def script_defaults(s):
     for index, i in enumerate(CONSTANTS.DEFAULT_ALIASES):
         data = obs.obs_data_create_from_json(json.dumps(i))
         obs.obs_data_array_insert(arr, index, data)
+        obs.obs_data_release(data)
 
     obs.obs_data_set_default_array(s, PN.PROP_ALIASES_LIST, arr)
+    obs.obs_data_array_release(arr)
     log.debug("The default values are set.")
 
 
@@ -1810,6 +1821,7 @@ def script_save(settings):
     for key_name in VARIABLES.hotkey_ids:
         k = obs.obs_hotkey_save(VARIABLES.hotkey_ids[key_name])
         obs.obs_data_set_array(settings, key_name, k)
+        obs.obs_data_array_release(k)
     log.debug("Script saved")
 
 

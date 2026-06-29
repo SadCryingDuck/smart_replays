@@ -14,7 +14,7 @@
 
 from .globals import VARIABLES, PN, CONSTANTS, PopupPathDisplayModes
 from .tech import log
-from .obs_related import get_replay_buffer_max_time, request_buffer_restart
+from .obs_related import get_replay_buffer_max_time, request_buffer_restart, begin_restart_polling
 from .script_helpers import notify
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history, append_video_exe_history
 from .save_buffer import move_clip_file
@@ -43,12 +43,6 @@ def on_buffer_recording_started_callback(event):
         obs.timer_add(restart_replay_buffering_callback, restart_loop_time * 1000)
 
 
-def start_buffer_after_stop():
-    obs.timer_remove(start_buffer_after_stop)
-    log.debug("Restarting replay buffer.")
-    obs.obs_frontend_replay_buffer_start()
-
-
 def on_buffer_recording_stopped_callback(event):
     """
     Stops recording executables history.
@@ -64,7 +58,7 @@ def on_buffer_recording_stopped_callback(event):
 
     if VARIABLES.restart_pending:
         VARIABLES.restart_pending = False
-        obs.timer_add(start_buffer_after_stop, 100)
+        begin_restart_polling()
 
 
 def on_buffer_save_callback(event):

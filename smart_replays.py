@@ -233,7 +233,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.2.2"
+    VERSION = "1.2.3"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -243,6 +243,8 @@ class CONSTANTS:
     PATH_PROHIBITED_CHARS = r'"<>*?|%'
     DEFAULT_FILENAME_FORMAT = "%NAME_%d.%m.%Y_%H-%M-%S"
     DEFAULT_CLIP_NAME = "UnknownApp"
+    BUFFER_RESTART_POLL_INTERVAL_MS = 50
+    BUFFER_RESTART_MAX_ATTEMPTS = 100
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -259,6 +261,7 @@ class VARIABLES:
     hotkey_ids: dict = {}
     force_mode = None
     restart_pending: bool = False
+    restart_attempts: int = 0
 
 
 class ConfigTypes(Enum):
@@ -1336,6 +1339,29 @@ def request_buffer_restart():
     obs.obs_frontend_replay_buffer_stop()
 
 
+def begin_restart_polling():
+    VARIABLES.restart_attempts = 0
+    obs.timer_remove(start_buffer_when_ready)
+    obs.timer_add(start_buffer_when_ready, CONSTANTS.BUFFER_RESTART_POLL_INTERVAL_MS)
+
+
+def start_buffer_when_ready():
+    replay_output = obs.obs_frontend_get_replay_buffer_output()
+    ready = obs.obs_output_can_begin_data_capture(replay_output, 0)
+    obs.obs_output_release(replay_output)
+
+    if ready:
+        obs.timer_remove(start_buffer_when_ready)
+        log.debug("Replay buffer stopped; restarting.")
+        obs.obs_frontend_replay_buffer_start()
+        return
+
+    VARIABLES.restart_attempts += 1
+    if VARIABLES.restart_attempts >= CONSTANTS.BUFFER_RESTART_MAX_ATTEMPTS:
+        obs.timer_remove(start_buffer_when_ready)
+        log.warning("Timed out waiting for replay buffer to stop; restart aborted.")
+
+
 # -------------------- script_helpers.py --------------------
 def show_popup_notification(python_exe: str, *args: str) -> None:
     try:
@@ -1598,12 +1624,6 @@ def on_buffer_recording_started_callback(event):
         obs.timer_add(restart_replay_buffering_callback, restart_loop_time * 1000)
 
 
-def start_buffer_after_stop():
-    obs.timer_remove(start_buffer_after_stop)
-    log.debug("Restarting replay buffer.")
-    obs.obs_frontend_replay_buffer_start()
-
-
 def on_buffer_recording_stopped_callback(event):
     """
     Stops recording executables history.
@@ -1619,7 +1639,7 @@ def on_buffer_recording_stopped_callback(event):
 
     if VARIABLES.restart_pending:
         VARIABLES.restart_pending = False
-        obs.timer_add(start_buffer_after_stop, 100)
+        begin_restart_polling()
 
 
 def on_buffer_save_callback(event):
@@ -1813,7 +1833,7 @@ def script_load(script_settings):
 def script_unload():
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
-    obs.timer_remove(start_buffer_after_stop)
+    obs.timer_remove(start_buffer_when_ready)
 
     log.debug("Script unloaded.")
 

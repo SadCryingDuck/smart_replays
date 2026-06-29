@@ -120,3 +120,26 @@ def request_buffer_restart():
     log.debug("Replay buffer restart requested.")
     VARIABLES.restart_pending = True
     obs.obs_frontend_replay_buffer_stop()
+
+
+def begin_restart_polling():
+    VARIABLES.restart_attempts = 0
+    obs.timer_remove(start_buffer_when_ready)
+    obs.timer_add(start_buffer_when_ready, CONSTANTS.BUFFER_RESTART_POLL_INTERVAL_MS)
+
+
+def start_buffer_when_ready():
+    replay_output = obs.obs_frontend_get_replay_buffer_output()
+    ready = obs.obs_output_can_begin_data_capture(replay_output, 0)
+    obs.obs_output_release(replay_output)
+
+    if ready:
+        obs.timer_remove(start_buffer_when_ready)
+        log.debug("Replay buffer stopped; restarting.")
+        obs.obs_frontend_replay_buffer_start()
+        return
+
+    VARIABLES.restart_attempts += 1
+    if VARIABLES.restart_attempts >= CONSTANTS.BUFFER_RESTART_MAX_ATTEMPTS:
+        obs.timer_remove(start_buffer_when_ready)
+        log.warning("Timed out waiting for replay buffer to stop; restart aborted.")

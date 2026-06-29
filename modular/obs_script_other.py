@@ -121,5 +121,6 @@ Smart Replays is an OBS script whose main purpose is to save clips with differen
 <div style="font-size: 10pt; text-align: left; margin-top: 20px;">
 Version: {CONSTANTS.VERSION}<br/>
 Developed by: Qvvonk<br/>
+Fork maintained by: SadCryingDuck<br/>
 </div>
 """

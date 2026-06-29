@@ -920,7 +920,7 @@ def script_properties():
 # data: script settings
 # Usually I don't use `data`, cuz we have script_settings global variable.
 def open_github_callback(*args):
-    webbrowser.open("https://github.com/qvvonk/smart_replays", 1)
+    webbrowser.open("https://github.com/SadCryingDuck/smart_replays", 1)
 
 
 def update_aliases_callback(p, prop, data):
@@ -1810,5 +1810,6 @@ Smart Replays is an OBS script whose main purpose is to save clips with differen
 <div style="font-size: 10pt; text-align: left; margin-top: 20px;">
 Version: {CONSTANTS.VERSION}<br/>
 Developed by: Qvvonk<br/>
+Fork maintained by: SadCryingDuck<br/>
 </div>
 """

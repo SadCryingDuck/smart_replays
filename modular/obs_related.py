@@ -22,7 +22,7 @@ import obspython as obs
 
 def get_obs_config(section_name: str | None = None,
                    param_name: str | None = None,
-                   value_type: type[str, int, bool, float] = str,
+                   value_type: type[str | int | bool | float] = str,
                    config_type: ConfigTypes = ConfigTypes.PROFILE):
     """
     Gets a value from OBS config.

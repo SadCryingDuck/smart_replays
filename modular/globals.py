@@ -45,7 +45,7 @@ class CONSTANTS:
 
 class VARIABLES:
     update_available: bool = False
-    clip_exe_history: deque[Path, ...] | None = None
+    clip_exe_history: deque[Path] | None = None
     video_exe_history: defaultdict[Path, int] | None = None  # {Path(path/to/executable): active_seconds_amount
     exe_path_on_video_stopping_event: Path | None = None
     aliases: dict[Path, str] = {}

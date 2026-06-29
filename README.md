@@ -5,6 +5,10 @@
 Smart Replays is an OBS script whose main purpose is to save clips with different names and to separate folders depending on the application being recorded (imitating NVIDIA Shadow Play functionality).
 This script also has additional functionality, such as sound and pop-up notifications, auto-restart of the replay buffer, etc.
 
+> [!NOTE]
+> This is a modified fork of [qvvonk/smart_replays](https://github.com/qvvonk/smart_replays), maintained by SadCryingDuck.
+> See the commit history and [releases](https://github.com/SadCryingDuck/smart_replays/releases) for the changes and their dates.
+
 ![overview](https://github.com/user-attachments/assets/82c8e163-ae2a-4ace-90ca-f4c052aa67e3)
 
 <div align="center">

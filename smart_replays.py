@@ -233,7 +233,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.2.2"
+    VERSION = "1.2.3"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -243,6 +243,8 @@ class CONSTANTS:
     PATH_PROHIBITED_CHARS = r'"<>*?|%'
     DEFAULT_FILENAME_FORMAT = "%NAME_%d.%m.%Y_%H-%M-%S"
     DEFAULT_CLIP_NAME = "UnknownApp"
+    BUFFER_RESTART_POLL_INTERVAL_MS = 50
+    BUFFER_RESTART_MAX_ATTEMPTS = 100
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -251,7 +253,7 @@ class CONSTANTS:
 
 class VARIABLES:
     update_available: bool = False
-    clip_exe_history: deque[Path, ...] | None = None
+    clip_exe_history: deque[Path] | None = None
     video_exe_history: defaultdict[Path, int] | None = None  # {Path(path/to/executable): active_seconds_amount
     exe_path_on_video_stopping_event: Path | None = None
     aliases: dict[Path, str] = {}
@@ -259,6 +261,7 @@ class VARIABLES:
     hotkey_ids: dict = {}
     force_mode = None
     restart_pending: bool = False
+    restart_attempts: int = 0
 
 
 class ConfigTypes(Enum):
@@ -411,12 +414,19 @@ def get_latest_release_tag() -> str | None:
     return None
 
 
+def _parse_version(tag: str) -> tuple[int, ...]:
+    parts = tag.lstrip("v").split(".")
+    if not all(part.isdigit() for part in parts):
+        return ()
+    return tuple(int(part) for part in parts)
+
+
 def check_updates(current_version: str) -> bool:
-    latest_version = get_latest_release_tag()
-    log.debug(latest_version)
-    if latest_version and f'v{current_version}' != latest_version:
-        return True
-    return False
+    latest_tag = get_latest_release_tag()
+    log.debug(f"Latest release: {latest_tag}, current: {current_version}")
+    latest = _parse_version(latest_tag or "")
+    current = _parse_version(current_version)
+    return bool(latest) and bool(current) and latest > current
 
 
 def check_updates_in_background(current_version: str) -> None:
@@ -1236,7 +1246,7 @@ def create_hard_link(file_path: Path | str, links_folder: Path | str) -> None:
 # -------------------- obs_related.py --------------------
 def get_obs_config(section_name: str | None = None,
                    param_name: str | None = None,
-                   value_type: type[str, int, bool, float] = str,
+                   value_type: type[str | int | bool | float] = str,
                    config_type: ConfigTypes = ConfigTypes.PROFILE):
     """
     Gets a value from OBS config.
@@ -1334,6 +1344,29 @@ def request_buffer_restart():
     log.debug("Replay buffer restart requested.")
     VARIABLES.restart_pending = True
     obs.obs_frontend_replay_buffer_stop()
+
+
+def begin_restart_polling():
+    VARIABLES.restart_attempts = 0
+    obs.timer_remove(start_buffer_when_ready)
+    obs.timer_add(start_buffer_when_ready, CONSTANTS.BUFFER_RESTART_POLL_INTERVAL_MS)
+
+
+def start_buffer_when_ready():
+    replay_output = obs.obs_frontend_get_replay_buffer_output()
+    ready = obs.obs_output_can_begin_data_capture(replay_output, 0)
+    obs.obs_output_release(replay_output)
+
+    if ready:
+        obs.timer_remove(start_buffer_when_ready)
+        log.debug("Replay buffer stopped; restarting.")
+        obs.obs_frontend_replay_buffer_start()
+        return
+
+    VARIABLES.restart_attempts += 1
+    if VARIABLES.restart_attempts >= CONSTANTS.BUFFER_RESTART_MAX_ATTEMPTS:
+        obs.timer_remove(start_buffer_when_ready)
+        log.warning("Timed out waiting for replay buffer to stop; restart aborted.")
 
 
 # -------------------- script_helpers.py --------------------
@@ -1598,12 +1631,6 @@ def on_buffer_recording_started_callback(event):
         obs.timer_add(restart_replay_buffering_callback, restart_loop_time * 1000)
 
 
-def start_buffer_after_stop():
-    obs.timer_remove(start_buffer_after_stop)
-    log.debug("Restarting replay buffer.")
-    obs.obs_frontend_replay_buffer_start()
-
-
 def on_buffer_recording_stopped_callback(event):
     """
     Stops recording executables history.
@@ -1619,7 +1646,7 @@ def on_buffer_recording_stopped_callback(event):
 
     if VARIABLES.restart_pending:
         VARIABLES.restart_pending = False
-        obs.timer_add(start_buffer_after_stop, 100)
+        begin_restart_polling()
 
 
 def on_buffer_save_callback(event):
@@ -1813,7 +1840,7 @@ def script_load(script_settings):
 def script_unload():
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
-    obs.timer_remove(start_buffer_after_stop)
+    obs.timer_remove(start_buffer_when_ready)
 
     log.debug("Script unloaded.")
 

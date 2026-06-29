@@ -12,13 +12,12 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-from .globals import PN, CONSTANTS, ConfigTypes
+from .globals import PN, CONSTANTS, ConfigTypes, VARIABLES
 from .tech import log
 
 from pathlib import Path
 from typing import Any
 import obspython as obs
-import time
 
 
 def get_obs_config(section_name: str | None = None,
@@ -117,24 +116,7 @@ def get_base_path(script_settings: Any | None = None) -> Path:
         return Path(get_obs_config("AdvOut", "RecFilePath"))
 
 
-def restart_replay_buffering():
-    """
-    Restarts replay buffering, obviously -_-
-    """
-    log.debug("Stopping replay buffering...")
-    replay_output = obs.obs_frontend_get_replay_buffer_output()
+def request_buffer_restart():
+    log.debug("Replay buffer restart requested.")
+    VARIABLES.restart_pending = True
     obs.obs_frontend_replay_buffer_stop()
-
-    deadline = time.monotonic() + CONSTANTS.REPLAY_BUFFER_STOP_TIMEOUT_SECONDS
-    while not obs.obs_output_can_begin_data_capture(replay_output, 0):
-        if time.monotonic() > deadline:
-            log.warning("Timed out waiting for the replay buffer to stop. Restart aborted.")
-            obs.obs_output_release(replay_output)
-            return
-        time.sleep(CONSTANTS.REPLAY_BUFFER_STOP_POLL_INTERVAL_SECONDS)
-
-    obs.obs_output_release(replay_output)
-    log.debug("Replay buffering stopped.")
-    log.debug("Starting replay buffering...")
-    obs.obs_frontend_replay_buffer_start()
-    log.debug("Replay buffering started.")

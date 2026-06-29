@@ -19,7 +19,8 @@ from .obs_related import get_base_path
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history
 from .obs_events_callbacks import (on_buffer_save_callback,
                                    on_buffer_recording_started_callback,
-                                   on_buffer_recording_stopped_callback)
+                                   on_buffer_recording_stopped_callback,
+                                   start_buffer_after_stop)
 from .script_helpers import load_aliases
 from .updates_check import check_updates_in_background
 from .hotkeys import load_hotkeys
@@ -104,6 +105,7 @@ def script_load(script_settings):
 def script_unload():
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
+    obs.timer_remove(start_buffer_after_stop)
 
     log.debug("Script unloaded.")
 

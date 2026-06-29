@@ -14,7 +14,7 @@
 
 from .globals import VARIABLES, PN, CONSTANTS, PopupPathDisplayModes
 from .tech import log
-from .obs_related import get_replay_buffer_max_time, restart_replay_buffering
+from .obs_related import get_replay_buffer_max_time, request_buffer_restart
 from .script_helpers import notify
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history, append_video_exe_history
 from .save_buffer import move_clip_file
@@ -22,7 +22,6 @@ from pathlib import Path
 
 import obspython as obs
 from collections import deque, defaultdict
-from threading import Thread
 import traceback
 
 
@@ -44,6 +43,12 @@ def on_buffer_recording_started_callback(event):
         obs.timer_add(restart_replay_buffering_callback, restart_loop_time * 1000)
 
 
+def start_buffer_after_stop():
+    obs.timer_remove(start_buffer_after_stop)
+    log.debug("Restarting replay buffer.")
+    obs.obs_frontend_replay_buffer_start()
+
+
 def on_buffer_recording_stopped_callback(event):
     """
     Stops recording executables history.
@@ -56,6 +61,10 @@ def on_buffer_recording_stopped_callback(event):
     obs.timer_remove(restart_replay_buffering_callback)
     if VARIABLES.clip_exe_history is not None:
         VARIABLES.clip_exe_history.clear()
+
+    if VARIABLES.restart_pending:
+        VARIABLES.restart_pending = False
+        obs.timer_add(start_buffer_after_stop, 100)
 
 
 def on_buffer_save_callback(event):
@@ -71,10 +80,7 @@ def on_buffer_save_callback(event):
     try:
         clip_name, path = move_clip_file(mode=VARIABLES.force_mode)
         if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_RESTART_BUFFER):
-            # IMPORTANT
-            # I don't know why, but it seems like stopping and starting replay buffering should be in the separate thread.
-            # Otherwise it can "stuck" on stopping.
-            Thread(target=restart_replay_buffering, daemon=True).start()
+            request_buffer_restart()
 
         notify(True, path, path_display_mode=path_display_type)
     except Exception:

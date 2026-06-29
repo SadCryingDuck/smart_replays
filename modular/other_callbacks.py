@@ -14,11 +14,10 @@
 
 
 from .globals import VARIABLES
-from .obs_related import get_replay_buffer_max_time, restart_replay_buffering
+from .obs_related import get_replay_buffer_max_time, request_buffer_restart
 from .tech import get_time_since_last_input, get_active_window_pid, get_executable_path, log
 
 import obspython as obs
-from threading import Thread
 from contextlib import suppress
 
 
@@ -41,10 +40,7 @@ def restart_replay_buffering_callback():
         obs.timer_add(restart_replay_buffering_callback, next_call)
         return
 
-    # IMPORTANT
-    # I don't know why, but it seems like stopping and starting replay buffering should be in the separate thread.
-    # Otherwise it can "stuck" at stopping state.
-    Thread(target=restart_replay_buffering, daemon=True).start()
+    request_buffer_restart()
     # I don't re-add this callback to timer again, cz it will be automatically added in on buffering start callback.
 
 

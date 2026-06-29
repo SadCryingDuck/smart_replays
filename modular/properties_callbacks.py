@@ -34,6 +34,10 @@ def open_github_callback(*args):
     webbrowser.open("https://github.com/SadCryingDuck/smart_replays", 1)
 
 
+def open_latest_release_callback(*args):
+    webbrowser.open("https://github.com/SadCryingDuck/smart_replays/releases/latest", 1)
+
+
 def update_aliases_callback(p, prop, data):
     """
     Checks the list of aliases and updates aliases menu (shows / hides error texts).

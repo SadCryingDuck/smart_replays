@@ -35,12 +35,19 @@ def get_latest_release_tag() -> str | None:
     return None
 
 
+def _parse_version(tag: str) -> tuple[int, ...]:
+    parts = tag.lstrip("v").split(".")
+    if not all(part.isdigit() for part in parts):
+        return ()
+    return tuple(int(part) for part in parts)
+
+
 def check_updates(current_version: str) -> bool:
-    latest_version = get_latest_release_tag()
-    log.debug(latest_version)
-    if latest_version and f'v{current_version}' != latest_version:
-        return True
-    return False
+    latest_tag = get_latest_release_tag()
+    log.debug(f"Latest release: {latest_tag}, current: {current_version}")
+    latest = _parse_version(latest_tag or "")
+    current = _parse_version(current_version)
+    return bool(latest) and bool(current) and latest > current
 
 
 def check_updates_in_background(current_version: str) -> None:

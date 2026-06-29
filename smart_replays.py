@@ -208,7 +208,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.1.0"
+    VERSION = "1.1.1"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -393,6 +393,14 @@ def check_updates(current_version: str) -> bool:
     if latest_version and f'v{current_version}' != latest_version:
         return True
     return False
+
+
+def check_updates_in_background(current_version: str) -> None:
+    Thread(target=_apply_update_check, args=(current_version,), daemon=True).start()
+
+
+def _apply_update_check(current_version: str) -> None:
+    VARIABLES.update_available = check_updates(current_version)
 
 
 # -------------------- properties.py --------------------
@@ -912,7 +920,7 @@ def script_properties():
 # data: script settings
 # Usually I don't use `data`, cuz we have script_settings global variable.
 def open_github_callback(*args):
-    webbrowser.open("https://github.com/qvvonk/smart_replays", 1)
+    webbrowser.open("https://github.com/SadCryingDuck/smart_replays", 1)
 
 
 def update_aliases_callback(p, prop, data):
@@ -1426,7 +1434,7 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
 
     else:
         log.debug("Clip filename depends on the name of the current scene name.")
-        return get_current_scene_name()
+        return sanitize_clip_name(get_current_scene_name())
 
 
 def get_alias(executable_path: str | Path, aliases_dict: dict[Path, str]) -> str | None:
@@ -1449,6 +1457,11 @@ def get_alias(executable_path: str | Path, aliases_dict: dict[Path, str]) -> str
         if parent in aliases_dict:
             return aliases_dict[parent]
 
+
+def sanitize_clip_name(name: str) -> str:
+    for char in CONSTANTS.FILENAME_PROHIBITED_CHARS:
+        name = name.replace(char, "_")
+    return name
 
 
 def gen_filename(base_name: str, template: str, dt: datetime | None = None) -> str:
@@ -1757,7 +1770,7 @@ def script_load(script_settings):
     VARIABLES.script_settings = script_settings
     setup_logging(obs.obs_data_get_bool(script_settings, PN.PROP_DEBUG_MODE))
     log.debug("Loading script...")
-    VARIABLES.update_available = check_updates(CONSTANTS.VERSION)
+    check_updates_in_background(CONSTANTS.VERSION)
 
     json_settings = json.loads(obs.obs_data_get_json(script_settings))
     load_aliases(json_settings)
@@ -1797,5 +1810,6 @@ Smart Replays is an OBS script whose main purpose is to save clips with differen
 <div style="font-size: 10pt; text-align: left; margin-top: 20px;">
 Version: {CONSTANTS.VERSION}<br/>
 Developed by: Qvvonk<br/>
+Fork maintained by: SadCryingDuck<br/>
 </div>
 """

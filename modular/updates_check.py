@@ -12,9 +12,11 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
+from .globals import VARIABLES
 from .tech import log
 
 from urllib.request import urlopen
+from threading import Thread
 import json
 import traceback
 
@@ -39,3 +41,11 @@ def check_updates(current_version: str) -> bool:
     if latest_version and f'v{current_version}' != latest_version:
         return True
     return False
+
+
+def check_updates_in_background(current_version: str) -> None:
+    Thread(target=_apply_update_check, args=(current_version,), daemon=True).start()
+
+
+def _apply_update_check(current_version: str) -> None:
+    VARIABLES.update_available = check_updates(current_version)

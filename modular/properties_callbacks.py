@@ -31,7 +31,7 @@ import os
 # data: script settings
 # Usually I don't use `data`, cuz we have script_settings global variable.
 def open_github_callback(*args):
-    webbrowser.open("https://github.com/qvvonk/smart_replays", 1)
+    webbrowser.open("https://github.com/SadCryingDuck/smart_replays", 1)
 
 
 def update_aliases_callback(p, prop, data):

@@ -14,6 +14,7 @@
 
 from .globals import VARIABLES, PN, ClipNamingModes, VideoNamingModes, PopupPathDisplayModes
 from .properties_callbacks import (open_github_callback,
+                                   open_latest_release_callback,
                                    update_notifications_menu_callback,
                                    import_aliases_from_json_callback,
                                    export_aliases_to_json_callback,
@@ -502,6 +503,10 @@ def script_properties():
     # Updates text
     t = obs.obs_properties_add_text(p, 'check_updates', 'New update available', obs.OBS_TEXT_INFO)
     obs.obs_property_set_visible(t, VARIABLES.update_available)
+
+    update_btn = obs.obs_properties_add_button(p, "update_btn", "Download the latest version",
+                                               open_latest_release_callback)
+    obs.obs_property_set_visible(update_btn, VARIABLES.update_available)
 
     # Like btn
     obs.obs_properties_add_button(

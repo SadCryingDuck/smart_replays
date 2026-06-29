@@ -208,7 +208,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.1.1"
+    VERSION = "1.2.0"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -879,6 +879,10 @@ def script_properties():
     t = obs.obs_properties_add_text(p, 'check_updates', 'New update available', obs.OBS_TEXT_INFO)
     obs.obs_property_set_visible(t, VARIABLES.update_available)
 
+    update_btn = obs.obs_properties_add_button(p, "update_btn", "Download the latest version",
+                                               open_latest_release_callback)
+    obs.obs_property_set_visible(update_btn, VARIABLES.update_available)
+
     # Like btn
     obs.obs_properties_add_button(
         p,
@@ -921,6 +925,10 @@ def script_properties():
 # Usually I don't use `data`, cuz we have script_settings global variable.
 def open_github_callback(*args):
     webbrowser.open("https://github.com/SadCryingDuck/smart_replays", 1)
+
+
+def open_latest_release_callback(*args):
+    webbrowser.open("https://github.com/SadCryingDuck/smart_replays/releases/latest", 1)
 
 
 def update_aliases_callback(p, prop, data):

@@ -20,6 +20,7 @@ from .obs_related import get_current_scene_name
 import obspython as obs
 from pathlib import Path
 from datetime import datetime
+from collections import Counter
 import traceback
 
 
@@ -40,7 +41,7 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
         executable_path = None
 
         if mode is ClipNamingModes.MOST_RECORDED_PROCESS and VARIABLES.clip_exe_history:
-            executable_path = max(VARIABLES.clip_exe_history, key=VARIABLES.clip_exe_history.count)
+            executable_path = Counter(VARIABLES.clip_exe_history).most_common(1)[0][0]
         else:
             try:
                 executable_path = get_executable_path(get_active_window_pid())

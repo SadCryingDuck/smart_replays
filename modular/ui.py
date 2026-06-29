@@ -136,20 +136,21 @@ class NotificationWindow:
                                      on_finish_callback=self.on_text_anim_finished_callback)
 
 
-    def animate_frame(self, frame: tk.Frame, target_w, delay: float = 0.00001, speed: int = 3):
+    def animate_frame(self, frame: tk.Frame, target_w, duration: float = 0.15, fps: int = 60):
         init_w = frame.winfo_width()
-        speed = speed if init_w < target_w else -speed
+        steps = max(1, int(duration * fps))
+        frame_delay = duration / steps
 
-        for curr_w in range(init_w, target_w, speed):
+        for step in range(1, steps + 1):
+            curr_w = round(init_w + (target_w - init_w) * step / steps)
             frame.config(width=curr_w)
-            frame.place(x=self.wnd_w-curr_w, y=0)
+            frame.place(x=self.wnd_w - curr_w, y=0)
             frame.update()
-            time.sleep(delay)
+            time.sleep(frame_delay)
 
-        if frame.winfo_width() != target_w:
-            frame.config(width=target_w)
-            frame.place(x=self.wnd_w - target_w, y=0)
-            frame.update()
+        frame.config(width=target_w)
+        frame.place(x=self.wnd_w - target_w, y=0)
+        frame.update()
 
     def show(self):
         self.animate_frame(self.first_frame, self.wnd_w)

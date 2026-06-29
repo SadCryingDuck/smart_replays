@@ -36,7 +36,8 @@ kernel32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD,
 kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
 
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-EXECUTABLE_PATH_BUFFER_SIZE = 32768
+EXECUTABLE_PATH_BUFFER_SIZE = 1024
+EXECUTABLE_PATH_MAX_BUFFER_SIZE = 32768
 
 
 class LASTINPUTINFO(ctypes.Structure):
@@ -79,14 +80,14 @@ def get_executable_path(pid: int) -> Path:
         raise OSError(f"Process {pid} does not exist.")
 
     try:
-        size = wintypes.DWORD(EXECUTABLE_PATH_BUFFER_SIZE)
-        filename_buffer = ctypes.create_unicode_buffer(size.value)
-        result = kernel32.QueryFullProcessImageNameW(process_handle, 0, filename_buffer, ctypes.byref(size))
+        for buffer_size in (EXECUTABLE_PATH_BUFFER_SIZE, EXECUTABLE_PATH_MAX_BUFFER_SIZE):
+            size = wintypes.DWORD(buffer_size)
+            filename_buffer = ctypes.create_unicode_buffer(buffer_size)
+            if kernel32.QueryFullProcessImageNameW(process_handle, 0, filename_buffer, ctypes.byref(size)):
+                return Path(filename_buffer.value)
     finally:
         kernel32.CloseHandle(process_handle)
 
-    if result:
-        return Path(filename_buffer.value)
     raise RuntimeError(f"Cannot get executable path for process {pid}.")
 
 

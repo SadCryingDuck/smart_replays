@@ -32,6 +32,7 @@ from threading import Thread
 from pathlib import Path
 from collections import deque
 from collections import defaultdict
+from collections import Counter
 from urllib.request import urlopen
 from ctypes import wintypes
 from contextlib import suppress
@@ -160,20 +161,21 @@ class NotificationWindow:
                                      on_finish_callback=self.on_text_anim_finished_callback)
 
 
-    def animate_frame(self, frame: tk.Frame, target_w, delay: float = 0.00001, speed: int = 3):
+    def animate_frame(self, frame: tk.Frame, target_w, duration: float = 0.15, fps: int = 60):
         init_w = frame.winfo_width()
-        speed = speed if init_w < target_w else -speed
+        steps = max(1, int(duration * fps))
+        frame_delay = duration / steps
 
-        for curr_w in range(init_w, target_w, speed):
+        for step in range(1, steps + 1):
+            curr_w = round(init_w + (target_w - init_w) * step / steps)
             frame.config(width=curr_w)
-            frame.place(x=self.wnd_w-curr_w, y=0)
+            frame.place(x=self.wnd_w - curr_w, y=0)
             frame.update()
-            time.sleep(delay)
+            time.sleep(frame_delay)
 
-        if frame.winfo_width() != target_w:
-            frame.config(width=target_w)
-            frame.place(x=self.wnd_w - target_w, y=0)
-            frame.update()
+        frame.config(width=target_w)
+        frame.place(x=self.wnd_w - target_w, y=0)
+        frame.update()
 
     def show(self):
         self.animate_frame(self.first_frame, self.wnd_w)
@@ -208,7 +210,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.2.0"
+    VERSION = "1.2.1"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -1117,7 +1119,8 @@ kernel32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD,
 kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
 
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-EXECUTABLE_PATH_BUFFER_SIZE = 32768
+EXECUTABLE_PATH_BUFFER_SIZE = 1024
+EXECUTABLE_PATH_MAX_BUFFER_SIZE = 32768
 
 
 class LASTINPUTINFO(ctypes.Structure):
@@ -1160,14 +1163,14 @@ def get_executable_path(pid: int) -> Path:
         raise OSError(f"Process {pid} does not exist.")
 
     try:
-        size = wintypes.DWORD(EXECUTABLE_PATH_BUFFER_SIZE)
-        filename_buffer = ctypes.create_unicode_buffer(size.value)
-        result = kernel32.QueryFullProcessImageNameW(process_handle, 0, filename_buffer, ctypes.byref(size))
+        for buffer_size in (EXECUTABLE_PATH_BUFFER_SIZE, EXECUTABLE_PATH_MAX_BUFFER_SIZE):
+            size = wintypes.DWORD(buffer_size)
+            filename_buffer = ctypes.create_unicode_buffer(buffer_size)
+            if kernel32.QueryFullProcessImageNameW(process_handle, 0, filename_buffer, ctypes.byref(size)):
+                return Path(filename_buffer.value)
     finally:
         kernel32.CloseHandle(process_handle)
 
-    if result:
-        return Path(filename_buffer.value)
     raise RuntimeError(f"Cannot get executable path for process {pid}.")
 
 
@@ -1421,7 +1424,7 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
         executable_path = None
 
         if mode is ClipNamingModes.MOST_RECORDED_PROCESS and VARIABLES.clip_exe_history:
-            executable_path = max(VARIABLES.clip_exe_history, key=VARIABLES.clip_exe_history.count)
+            executable_path = Counter(VARIABLES.clip_exe_history).most_common(1)[0][0]
         else:
             try:
                 executable_path = get_executable_path(get_active_window_pid())

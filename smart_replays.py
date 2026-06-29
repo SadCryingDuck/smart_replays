@@ -233,7 +233,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.2.1"
+    VERSION = "1.2.2"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -243,8 +243,6 @@ class CONSTANTS:
     PATH_PROHIBITED_CHARS = r'"<>*?|%'
     DEFAULT_FILENAME_FORMAT = "%NAME_%d.%m.%Y_%H-%M-%S"
     DEFAULT_CLIP_NAME = "UnknownApp"
-    REPLAY_BUFFER_STOP_TIMEOUT_SECONDS = 5
-    REPLAY_BUFFER_STOP_POLL_INTERVAL_SECONDS = 0.1
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -260,6 +258,7 @@ class VARIABLES:
     script_settings = None
     hotkey_ids: dict = {}
     force_mode = None
+    restart_pending: bool = False
 
 
 class ConfigTypes(Enum):
@@ -1331,27 +1330,10 @@ def get_base_path(script_settings: Any | None = None) -> Path:
         return Path(get_obs_config("AdvOut", "RecFilePath"))
 
 
-def restart_replay_buffering():
-    """
-    Restarts replay buffering, obviously -_-
-    """
-    log.debug("Stopping replay buffering...")
-    replay_output = obs.obs_frontend_get_replay_buffer_output()
+def request_buffer_restart():
+    log.debug("Replay buffer restart requested.")
+    VARIABLES.restart_pending = True
     obs.obs_frontend_replay_buffer_stop()
-
-    deadline = time.monotonic() + CONSTANTS.REPLAY_BUFFER_STOP_TIMEOUT_SECONDS
-    while not obs.obs_output_can_begin_data_capture(replay_output, 0):
-        if time.monotonic() > deadline:
-            log.warning("Timed out waiting for the replay buffer to stop. Restart aborted.")
-            obs.obs_output_release(replay_output)
-            return
-        time.sleep(CONSTANTS.REPLAY_BUFFER_STOP_POLL_INTERVAL_SECONDS)
-
-    obs.obs_output_release(replay_output)
-    log.debug("Replay buffering stopped.")
-    log.debug("Starting replay buffering...")
-    obs.obs_frontend_replay_buffer_start()
-    log.debug("Replay buffering started.")
 
 
 # -------------------- script_helpers.py --------------------
@@ -1616,6 +1598,12 @@ def on_buffer_recording_started_callback(event):
         obs.timer_add(restart_replay_buffering_callback, restart_loop_time * 1000)
 
 
+def start_buffer_after_stop():
+    obs.timer_remove(start_buffer_after_stop)
+    log.debug("Restarting replay buffer.")
+    obs.obs_frontend_replay_buffer_start()
+
+
 def on_buffer_recording_stopped_callback(event):
     """
     Stops recording executables history.
@@ -1628,6 +1616,10 @@ def on_buffer_recording_stopped_callback(event):
     obs.timer_remove(restart_replay_buffering_callback)
     if VARIABLES.clip_exe_history is not None:
         VARIABLES.clip_exe_history.clear()
+
+    if VARIABLES.restart_pending:
+        VARIABLES.restart_pending = False
+        obs.timer_add(start_buffer_after_stop, 100)
 
 
 def on_buffer_save_callback(event):
@@ -1643,10 +1635,7 @@ def on_buffer_save_callback(event):
     try:
         clip_name, path = move_clip_file(mode=VARIABLES.force_mode)
         if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_RESTART_BUFFER):
-            # IMPORTANT
-            # I don't know why, but it seems like stopping and starting replay buffering should be in the separate thread.
-            # Otherwise it can "stuck" on stopping.
-            Thread(target=restart_replay_buffering, daemon=True).start()
+            request_buffer_restart()
 
         notify(True, path, path_display_mode=path_display_type)
     except Exception:
@@ -1702,10 +1691,7 @@ def restart_replay_buffering_callback():
         obs.timer_add(restart_replay_buffering_callback, next_call)
         return
 
-    # IMPORTANT
-    # I don't know why, but it seems like stopping and starting replay buffering should be in the separate thread.
-    # Otherwise it can "stuck" at stopping state.
-    Thread(target=restart_replay_buffering, daemon=True).start()
+    request_buffer_restart()
     # I don't re-add this callback to timer again, cz it will be automatically added in on buffering start callback.
 
 
@@ -1827,6 +1813,7 @@ def script_load(script_settings):
 def script_unload():
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
+    obs.timer_remove(start_buffer_after_stop)
 
     log.debug("Script unloaded.")
 

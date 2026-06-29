@@ -1434,7 +1434,7 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
 
     else:
         log.debug("Clip filename depends on the name of the current scene name.")
-        return get_current_scene_name()
+        return sanitize_clip_name(get_current_scene_name())
 
 
 def get_alias(executable_path: str | Path, aliases_dict: dict[Path, str]) -> str | None:
@@ -1457,6 +1457,11 @@ def get_alias(executable_path: str | Path, aliases_dict: dict[Path, str]) -> str
         if parent in aliases_dict:
             return aliases_dict[parent]
 
+
+def sanitize_clip_name(name: str) -> str:
+    for char in CONSTANTS.FILENAME_PROHIBITED_CHARS:
+        name = name.replace(char, "_")
+    return name
 
 
 def gen_filename(base_name: str, template: str, dt: datetime | None = None) -> str:

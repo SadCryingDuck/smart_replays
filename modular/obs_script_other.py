@@ -21,7 +21,7 @@ from .obs_events_callbacks import (on_buffer_save_callback,
                                    on_buffer_recording_started_callback,
                                    on_buffer_recording_stopped_callback)
 from .script_helpers import load_aliases
-from .updates_check import check_updates
+from .updates_check import check_updates_in_background
 from .hotkeys import load_hotkeys
 
 import obspython as obs
@@ -81,7 +81,7 @@ def script_load(script_settings):
     VARIABLES.script_settings = script_settings
     setup_logging(obs.obs_data_get_bool(script_settings, PN.PROP_DEBUG_MODE))
     log.debug("Loading script...")
-    VARIABLES.update_available = check_updates(CONSTANTS.VERSION)
+    check_updates_in_background(CONSTANTS.VERSION)
 
     json_settings = json.loads(obs.obs_data_get_json(script_settings))
     load_aliases(json_settings)

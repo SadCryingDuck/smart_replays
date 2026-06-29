@@ -395,6 +395,14 @@ def check_updates(current_version: str) -> bool:
     return False
 
 
+def check_updates_in_background(current_version: str) -> None:
+    Thread(target=_apply_update_check, args=(current_version,), daemon=True).start()
+
+
+def _apply_update_check(current_version: str) -> None:
+    VARIABLES.update_available = check_updates(current_version)
+
+
 # -------------------- properties.py --------------------
 variables_tip = """<table>
 <tr><th align='left'>%NAME</th><td> - name of the clip.</td></tr>
@@ -1757,7 +1765,7 @@ def script_load(script_settings):
     VARIABLES.script_settings = script_settings
     setup_logging(obs.obs_data_get_bool(script_settings, PN.PROP_DEBUG_MODE))
     log.debug("Loading script...")
-    VARIABLES.update_available = check_updates(CONSTANTS.VERSION)
+    check_updates_in_background(CONSTANTS.VERSION)
 
     json_settings = json.loads(obs.obs_data_get_json(script_settings))
     load_aliases(json_settings)

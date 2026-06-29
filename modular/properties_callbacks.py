@@ -85,6 +85,7 @@ def update_aliases_callback(p, prop, data):
     for index, alias in enumerate(settings_json[PN.PROP_ALIASES_LIST]):
         alias_data = obs.obs_data_create_from_json(json.dumps(alias))
         obs.obs_data_array_insert(new_aliases_array, index, alias_data)
+        obs.obs_data_release(alias_data)
 
     obs.obs_data_set_array(data, PN.PROP_ALIASES_LIST, new_aliases_array)
     obs.obs_data_array_release(new_aliases_array)
@@ -190,8 +191,10 @@ def import_aliases_from_json_callback(*args):
     for index, i in enumerate(data):
         item = obs.obs_data_create_from_json(json.dumps(i))
         obs.obs_data_array_insert(arr, index, item)
+        obs.obs_data_release(item)
 
     obs.obs_data_set_array(VARIABLES.script_settings, PN.PROP_ALIASES_LIST, arr)
+    obs.obs_data_array_release(arr)
     return True
 
 

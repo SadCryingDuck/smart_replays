@@ -54,8 +54,10 @@ def script_defaults(s):
     for index, i in enumerate(CONSTANTS.DEFAULT_ALIASES):
         data = obs.obs_data_create_from_json(json.dumps(i))
         obs.obs_data_array_insert(arr, index, data)
+        obs.obs_data_release(data)
 
     obs.obs_data_set_default_array(s, PN.PROP_ALIASES_LIST, arr)
+    obs.obs_data_array_release(arr)
     log.debug("The default values are set.")
 
 
@@ -74,6 +76,7 @@ def script_save(settings):
     for key_name in VARIABLES.hotkey_ids:
         k = obs.obs_hotkey_save(VARIABLES.hotkey_ids[key_name])
         obs.obs_data_set_array(settings, key_name, k)
+        obs.obs_data_array_release(k)
     log.debug("Script saved")
 
 

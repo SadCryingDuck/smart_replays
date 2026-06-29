@@ -65,13 +65,16 @@ def get_last_replay_file_name() -> str:
     Returns the last saved buffer file name.
     """
     replay_buffer = obs.obs_frontend_get_replay_buffer_output()
-    cd = obs.calldata_create()
-    proc_handler = obs.obs_output_get_proc_handler(replay_buffer)
-    obs.proc_handler_call(proc_handler, 'get_last_replay', cd)
-    path = obs.calldata_string(cd, 'path')
-    obs.calldata_destroy(cd)
-    obs.obs_output_release(replay_buffer)
-    return path
+    try:
+        cd = obs.calldata_create()
+        try:
+            proc_handler = obs.obs_output_get_proc_handler(replay_buffer)
+            obs.proc_handler_call(proc_handler, 'get_last_replay', cd)
+            return obs.calldata_string(cd, 'path')
+        finally:
+            obs.calldata_destroy(cd)
+    finally:
+        obs.obs_output_release(replay_buffer)
 
 
 def get_current_scene_name() -> str:
@@ -79,9 +82,10 @@ def get_current_scene_name() -> str:
     Returns the current OBS scene name.
     """
     current_scene = obs.obs_frontend_get_current_scene()
-    name = obs.obs_source_get_name(current_scene)
-    obs.obs_source_release(current_scene)
-    return name
+    try:
+        return obs.obs_source_get_name(current_scene)
+    finally:
+        obs.obs_source_release(current_scene)
 
 
 def get_replay_buffer_max_time() -> int:
@@ -130,8 +134,10 @@ def begin_restart_polling():
 
 def start_buffer_when_ready():
     replay_output = obs.obs_frontend_get_replay_buffer_output()
-    ready = obs.obs_output_can_begin_data_capture(replay_output, 0)
-    obs.obs_output_release(replay_output)
+    try:
+        ready = obs.obs_output_can_begin_data_capture(replay_output, 0)
+    finally:
+        obs.obs_output_release(replay_output)
 
     if ready:
         obs.timer_remove(start_buffer_when_ready)

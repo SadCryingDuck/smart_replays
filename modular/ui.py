@@ -15,8 +15,31 @@
 import tkinter as tk
 from tkinter import font as f
 
+import ctypes
+from ctypes import wintypes
 import time
 import sys
+
+VREFRESH = 116
+ctypes.windll.user32.GetDC.restype = wintypes.HDC
+ctypes.windll.user32.GetDC.argtypes = (wintypes.HWND,)
+ctypes.windll.user32.ReleaseDC.argtypes = (wintypes.HWND, wintypes.HDC)
+ctypes.windll.gdi32.GetDeviceCaps.restype = ctypes.c_int
+ctypes.windll.gdi32.GetDeviceCaps.argtypes = (wintypes.HDC, ctypes.c_int)
+
+
+def get_monitor_refresh_rate(default: int = 60) -> int:
+    try:
+        hdc = ctypes.windll.user32.GetDC(None)
+        try:
+            rate = ctypes.windll.gdi32.GetDeviceCaps(hdc, VREFRESH)
+        finally:
+            ctypes.windll.user32.ReleaseDC(None, hdc)
+        if rate > 1:
+            return rate
+    except Exception:
+        pass
+    return default
 
 
 # This part of the script uses only when it is run as a main program, not imported by OBS.
@@ -81,6 +104,7 @@ class NotificationWindow:
         self.message = message
         self.primary_color = primary_color
         self.bg_color = "#000000"
+        self.fps = get_monitor_refresh_rate()
 
         self.root = tk.Tk()
         self.root.withdraw()
@@ -136,9 +160,9 @@ class NotificationWindow:
                                      on_finish_callback=self.on_text_anim_finished_callback)
 
 
-    def animate_frame(self, frame: tk.Frame, target_w, duration: float = 0.15, fps: int = 60):
+    def animate_frame(self, frame: tk.Frame, target_w, duration: float = 0.15):
         init_w = frame.winfo_width()
-        steps = max(1, int(duration * fps))
+        steps = max(1, int(duration * self.fps))
         frame_delay = duration / steps
 
         for step in range(1, steps + 1):

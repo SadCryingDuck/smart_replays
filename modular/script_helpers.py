@@ -15,23 +15,13 @@
 from .globals import (VARIABLES, CONSTANTS, PN)
 
 from .exceptions import AliasInvalidFormat, AliasInvalidCharacters, AliasPathAlreadyExists
-from .globals import ConfigTypes, PopupPathDisplayModes
-from .obs_related import get_obs_config
-from .tech import log, play_sound
+from .globals import PopupPathDisplayModes
+from .obs_related import get_python_exe
+from .tech import log, play_sound, show_popup_notification
 
 from pathlib import Path
 import os
 import obspython as obs
-import subprocess
-import traceback
-
-
-def show_popup_notification(python_exe: str, *args: str) -> None:
-    try:
-        subprocess.Popen([python_exe, __file__, *args])
-    except Exception:
-        log.warning("Failed to launch popup notification.")
-        log.debug(traceback.format_exc())
 
 
 def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayModes):
@@ -40,7 +30,7 @@ def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayMo
     """
     sound_notifications = obs.obs_data_get_bool(VARIABLES.script_settings, PN.GR_SOUND_NOTIFICATION_SETTINGS)
     popup_notifications = obs.obs_data_get_bool(VARIABLES.script_settings, PN.GR_POPUP_NOTIFICATION_SETTINGS)
-    python_exe = os.path.join(get_obs_config("Python", "Path64bit", str, ConfigTypes.USER), "pythonw.exe")
+    python_exe = get_python_exe()
 
     if path_display_mode == PopupPathDisplayModes.JUST_FILE:
         clip_path = clip_path.name

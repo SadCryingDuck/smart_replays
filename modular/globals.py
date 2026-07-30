@@ -25,7 +25,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.2.5"
+    VERSION = "1.3.1"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -37,6 +37,8 @@ class CONSTANTS:
     DEFAULT_CLIP_NAME = "UnknownApp"
     BUFFER_RESTART_POLL_INTERVAL_MS = 50
     BUFFER_RESTART_MAX_ATTEMPTS = 100
+    BUFFER_START_VERIFY_DELAY_MS = 3000
+    BUFFER_START_MAX_RETRIES = 2
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -54,6 +56,7 @@ class VARIABLES:
     force_mode = None
     restart_pending: bool = False
     restart_attempts: int = 0
+    start_attempts: int = 0
 
 
 class ConfigTypes(Enum):

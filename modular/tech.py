@@ -22,6 +22,8 @@ import sys
 from pathlib import Path
 from contextlib import suppress
 import os
+import subprocess
+import traceback
 
 kernel32 = ctypes.windll.kernel32
 
@@ -99,6 +101,14 @@ def play_sound(path: str | Path):
     """
     with suppress(Exception):
         winsound.PlaySound(str(path), winsound.SND_ASYNC)
+
+
+def show_popup_notification(python_exe: str, *args: str) -> None:
+    try:
+        subprocess.Popen([python_exe, __file__, *args])
+    except Exception:
+        log.warning("Failed to launch popup notification.")
+        log.debug(traceback.format_exc())
 
 
 def get_time_since_last_input() -> int:

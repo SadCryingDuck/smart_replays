@@ -15,7 +15,7 @@
 from .globals import VARIABLES, CONSTANTS, ClipNamingModes, PopupPathDisplayModes, PN
 
 from .tech import log, setup_logging
-from .obs_related import get_base_path, start_buffer_when_ready
+from .obs_related import get_base_path, start_buffer_when_ready, verify_buffer_started
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history
 from .obs_events_callbacks import (on_buffer_save_callback,
                                    on_buffer_recording_started_callback,
@@ -108,6 +108,7 @@ def script_unload():
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
     obs.timer_remove(start_buffer_when_ready)
+    obs.timer_remove(verify_buffer_started)
 
     log.debug("Script unloaded.")
 

@@ -13,11 +13,12 @@
 #  GNU Affero General Public License for more details.
 
 from .globals import PN, CONSTANTS, ConfigTypes, VARIABLES
-from .tech import log
+from .tech import log, show_popup_notification
 
 from pathlib import Path
 from typing import Any
 import obspython as obs
+import os
 
 
 def get_obs_config(section_name: str | None = None,
@@ -58,6 +59,10 @@ def get_obs_config(section_name: str | None = None,
         raise ValueError("Unsupported type.")
 
     return functions[value_type](cfg, section_name, param_name)
+
+
+def get_python_exe() -> str:
+    return os.path.join(get_obs_config("Python", "Path64bit", str, ConfigTypes.USER), "pythonw.exe")
 
 
 def get_last_replay_file_name() -> str:
@@ -142,10 +147,35 @@ def start_buffer_when_ready():
     if ready:
         obs.timer_remove(start_buffer_when_ready)
         log.debug("Replay buffer stopped; restarting.")
+        VARIABLES.start_attempts = 0
+        obs.timer_remove(verify_buffer_started)
         obs.obs_frontend_replay_buffer_start()
+        obs.timer_add(verify_buffer_started, CONSTANTS.BUFFER_START_VERIFY_DELAY_MS)
         return
 
     VARIABLES.restart_attempts += 1
     if VARIABLES.restart_attempts >= CONSTANTS.BUFFER_RESTART_MAX_ATTEMPTS:
         obs.timer_remove(start_buffer_when_ready)
         log.warning("Timed out waiting for replay buffer to stop; restart aborted.")
+
+
+def verify_buffer_started():
+    obs.timer_remove(verify_buffer_started)
+
+    if obs.obs_frontend_replay_buffer_active():
+        log.debug("Replay buffer is running again.")
+        return
+
+    VARIABLES.start_attempts += 1
+    if VARIABLES.start_attempts <= CONSTANTS.BUFFER_START_MAX_RETRIES:
+        log.warning(f"Replay buffer did not start, retrying ({VARIABLES.start_attempts}).")
+        obs.obs_frontend_replay_buffer_start()
+        obs.timer_add(verify_buffer_started, CONSTANTS.BUFFER_START_VERIFY_DELAY_MS)
+        return
+
+    log.error("Replay buffer is not running and could not be restarted.")
+    if obs.obs_data_get_bool(VARIABLES.script_settings, PN.GR_POPUP_NOTIFICATION_SETTINGS):
+        show_popup_notification(get_python_exe(),
+                                "Replay buffer stopped",
+                                "It could not be restarted. More in the logs.",
+                                "#C00000")

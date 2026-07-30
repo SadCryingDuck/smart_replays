@@ -233,7 +233,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.2.4"
+    VERSION = "1.3.0"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -245,6 +245,8 @@ class CONSTANTS:
     DEFAULT_CLIP_NAME = "UnknownApp"
     BUFFER_RESTART_POLL_INTERVAL_MS = 50
     BUFFER_RESTART_MAX_ATTEMPTS = 100
+    BUFFER_START_VERIFY_DELAY_MS = 3000
+    BUFFER_START_MAX_RETRIES = 2
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -262,6 +264,7 @@ class VARIABLES:
     force_mode = None
     restart_pending: bool = False
     restart_attempts: int = 0
+    start_attempts: int = 0
 
 
 class ConfigTypes(Enum):
@@ -1219,6 +1222,14 @@ def play_sound(path: str | Path):
         winsound.PlaySound(str(path), winsound.SND_ASYNC)
 
 
+def show_popup_notification(python_exe: str, *args: str) -> None:
+    try:
+        subprocess.Popen([python_exe, __file__, *args])
+    except Exception:
+        log.warning("Failed to launch popup notification.")
+        log.debug(traceback.format_exc())
+
+
 def get_time_since_last_input() -> int:
     """
     Gets the time (in seconds) since the last mouse or keyboard input.
@@ -1285,6 +1296,10 @@ def get_obs_config(section_name: str | None = None,
         raise ValueError("Unsupported type.")
 
     return functions[value_type](cfg, section_name, param_name)
+
+
+def get_python_exe() -> str:
+    return os.path.join(get_obs_config("Python", "Path64bit", str, ConfigTypes.USER), "pythonw.exe")
 
 
 def get_last_replay_file_name() -> str:
@@ -1369,7 +1384,10 @@ def start_buffer_when_ready():
     if ready:
         obs.timer_remove(start_buffer_when_ready)
         log.debug("Replay buffer stopped; restarting.")
+        VARIABLES.start_attempts = 0
+        obs.timer_remove(verify_buffer_started)
         obs.obs_frontend_replay_buffer_start()
+        obs.timer_add(verify_buffer_started, CONSTANTS.BUFFER_START_VERIFY_DELAY_MS)
         return
 
     VARIABLES.restart_attempts += 1
@@ -1378,22 +1396,36 @@ def start_buffer_when_ready():
         log.warning("Timed out waiting for replay buffer to stop; restart aborted.")
 
 
+def verify_buffer_started():
+    obs.timer_remove(verify_buffer_started)
+
+    if obs.obs_frontend_replay_buffer_active():
+        log.debug("Replay buffer is running again.")
+        return
+
+    VARIABLES.start_attempts += 1
+    if VARIABLES.start_attempts <= CONSTANTS.BUFFER_START_MAX_RETRIES:
+        log.warning(f"Replay buffer did not start, retrying ({VARIABLES.start_attempts}).")
+        obs.obs_frontend_replay_buffer_start()
+        obs.timer_add(verify_buffer_started, CONSTANTS.BUFFER_START_VERIFY_DELAY_MS)
+        return
+
+    log.error("Replay buffer is not running and could not be restarted.")
+    if obs.obs_data_get_bool(VARIABLES.script_settings, PN.GR_POPUP_NOTIFICATION_SETTINGS):
+        show_popup_notification(get_python_exe(),
+                                "Replay buffer stopped",
+                                "It could not be restarted. More in the logs.",
+                                "#C00000")
+
+
 # -------------------- script_helpers.py --------------------
-def show_popup_notification(python_exe: str, *args: str) -> None:
-    try:
-        subprocess.Popen([python_exe, __file__, *args])
-    except Exception:
-        log.warning("Failed to launch popup notification.")
-        log.debug(traceback.format_exc())
-
-
 def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayModes):
     """
     Plays and shows success / failure notification if it's enabled in notifications settings.
     """
     sound_notifications = obs.obs_data_get_bool(VARIABLES.script_settings, PN.GR_SOUND_NOTIFICATION_SETTINGS)
     popup_notifications = obs.obs_data_get_bool(VARIABLES.script_settings, PN.GR_POPUP_NOTIFICATION_SETTINGS)
-    python_exe = os.path.join(get_obs_config("Python", "Path64bit", str, ConfigTypes.USER), "pythonw.exe")
+    python_exe = get_python_exe()
 
     if path_display_mode == PopupPathDisplayModes.JUST_FILE:
         clip_path = clip_path.name
@@ -1630,6 +1662,8 @@ def on_buffer_recording_started_callback(event):
     if event is not obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED:
         return
 
+    log.debug("Replay buffer started.")
+
     # Reset and restart exe history
     VARIABLES.clip_exe_history = deque([], maxlen=max(1, get_replay_buffer_max_time()))
     log.debug(f"Exe history deque created. Maxlen={VARIABLES.clip_exe_history.maxlen}.")
@@ -1655,7 +1689,10 @@ def on_buffer_recording_stopped_callback(event):
 
     if VARIABLES.restart_pending:
         VARIABLES.restart_pending = False
+        log.debug("Replay buffer stopped for a restart.")
         begin_restart_polling()
+    else:
+        log.warning("Replay buffer stopped. Clips cannot be saved until it is running again.")
 
 
 def on_buffer_save_callback(event):
@@ -1853,6 +1890,7 @@ def script_unload():
     obs.timer_remove(append_clip_exe_history)
     obs.timer_remove(restart_replay_buffering_callback)
     obs.timer_remove(start_buffer_when_ready)
+    obs.timer_remove(verify_buffer_started)
 
     log.debug("Script unloaded.")
 

@@ -33,6 +33,8 @@ def on_buffer_recording_started_callback(event):
     if event is not obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED:
         return
 
+    log.debug("Replay buffer started.")
+
     # Reset and restart exe history
     VARIABLES.clip_exe_history = deque([], maxlen=max(1, get_replay_buffer_max_time()))
     log.debug(f"Exe history deque created. Maxlen={VARIABLES.clip_exe_history.maxlen}.")
@@ -58,7 +60,10 @@ def on_buffer_recording_stopped_callback(event):
 
     if VARIABLES.restart_pending:
         VARIABLES.restart_pending = False
+        log.debug("Replay buffer stopped for a restart.")
         begin_restart_polling()
+    else:
+        log.warning("Replay buffer stopped. Clips cannot be saved until it is running again.")
 
 
 def on_buffer_save_callback(event):

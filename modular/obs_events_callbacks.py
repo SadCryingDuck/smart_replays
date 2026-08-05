@@ -17,7 +17,7 @@ from .tech import log
 from .obs_related import get_replay_buffer_max_time, request_buffer_restart, begin_restart_polling
 from .script_helpers import notify
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history, append_video_exe_history
-from .save_buffer import move_clip_file
+from .save_buffer import move_clip_file, release_save_lock_if_stuck
 from pathlib import Path
 
 import obspython as obs
@@ -81,13 +81,15 @@ def on_buffer_save_callback(event):
         if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_RESTART_BUFFER):
             request_buffer_restart()
 
-        notify(True, path, path_display_mode=path_display_type)
+        notify(True, path, path_display_mode=path_display_type, skip_popup=VARIABLES.instant_popup_shown)
     except Exception:
         log.error("An error occurred while moving file to the new destination.")
         log.debug(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
     finally:
+        obs.timer_remove(release_save_lock_if_stuck)
         VARIABLES.force_mode = None
+        VARIABLES.instant_popup_shown = False
         if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
             CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
     log.debug("-" * 50)

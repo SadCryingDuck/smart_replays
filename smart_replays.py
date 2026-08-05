@@ -45,6 +45,9 @@ if __name__ != '__main__':
 
 # -------------------- ui.py --------------------
 VREFRESH = 116
+SLIDE_DURATION_SECONDS = 0.1
+SLIDE_GAP_SECONDS = 0.04
+SCROLL_START_DELAY_MS = 600
 ctypes.windll.user32.GetDC.restype = wintypes.HDC
 ctypes.windll.user32.GetDC.argtypes = (wintypes.HWND,)
 ctypes.windll.user32.ReleaseDC.argtypes = (wintypes.HWND, wintypes.HDC)
@@ -184,7 +187,7 @@ class NotificationWindow:
                                      on_finish_callback=self.on_text_anim_finished_callback)
 
 
-    def animate_frame(self, frame: tk.Frame, target_w, duration: float = 0.15):
+    def animate_frame(self, frame: tk.Frame, target_w, duration: float = SLIDE_DURATION_SECONDS):
         init_w = frame.winfo_width()
         steps = max(1, int(duration * self.fps))
         frame_delay = duration / steps
@@ -202,15 +205,15 @@ class NotificationWindow:
 
     def show(self):
         self.animate_frame(self.first_frame, self.wnd_w)
-        time.sleep(0.1)
+        time.sleep(SLIDE_GAP_SECONDS)
         self.second_frame.lift()
         self.animate_frame(self.second_frame, self.wnd_w - self.second_frame_padding_x)
-        self.root.after(1000, self.message.update_scroll)
+        self.root.after(SCROLL_START_DELAY_MS, self.message.update_scroll)
         self.root.mainloop()
 
     def close(self):
         self.animate_frame(self.second_frame, 0)
-        time.sleep(0.1)
+        time.sleep(SLIDE_GAP_SECONDS)
         self.animate_frame(self.first_frame, 0)
         self.window.destroy()
         self.root.destroy()
@@ -233,7 +236,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.3.1"
+    VERSION = "1.4.1"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -247,6 +250,7 @@ class CONSTANTS:
     BUFFER_RESTART_MAX_ATTEMPTS = 100
     BUFFER_START_VERIFY_DELAY_MS = 3000
     BUFFER_START_MAX_RETRIES = 2
+    SAVE_REQUEST_TIMEOUT_MS = 60000
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -265,6 +269,7 @@ class VARIABLES:
     restart_pending: bool = False
     restart_attempts: int = 0
     start_attempts: int = 0
+    instant_popup_shown: bool = False
 
 
 class ConfigTypes(Enum):
@@ -557,7 +562,12 @@ def setup_clip_paths_settings(group_obj):
     t = obs.obs_properties_add_text(
         props=group_obj,
         name=PN.TXT_CLIPS_HOTKEY_TIP,
-        description="You can set up hotkeys for each mode in File -> Settings -> Hotkeys",
+        description="You can set up hotkeys for each mode in File -> Settings -> Hotkeys.\n"
+                    "A Smart Replays hotkey saves the clip in its own mode without changing the mode above, "
+                    "and shows the notification the moment you press the key.\n"
+                    "The built-in OBS 'Save Replay' hotkey uses the mode above, but its notification only "
+                    "appears once OBS has finished writing the clip, which takes a few seconds.\n"
+                    "Use one or the other. If both are bound to the same key, that key sends two save requests.",
         type=obs.OBS_TEXT_INFO
     )
     obs.obs_property_text_set_info_type(t, obs.OBS_TEXT_INFO_WARNING)
@@ -1419,7 +1429,17 @@ def verify_buffer_started():
 
 
 # -------------------- script_helpers.py --------------------
-def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayModes):
+def notify_saving(clip_name: str) -> bool:
+    if not obs.obs_data_get_bool(VARIABLES.script_settings, PN.GR_POPUP_NOTIFICATION_SETTINGS):
+        return False
+    if not obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS):
+        return False
+
+    show_popup_notification(get_python_exe(), "Saving clip", clip_name)
+    return True
+
+
+def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayModes, skip_popup: bool = False):
     """
     Plays and shows success / failure notification if it's enabled in notifications settings.
     """
@@ -1439,7 +1459,7 @@ def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayMo
             path = obs.obs_data_get_string(VARIABLES.script_settings, PN.PROP_NOTIFY_CLIPS_ON_SUCCESS_PATH)
             play_sound(path)
 
-        if popup_notifications and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS):
+        if popup_notifications and not skip_popup and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS):
             show_popup_notification(python_exe, "Clip saved", f"Clip saved to {clip_path}")
     else:
         if sound_notifications and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_NOTIFY_CLIPS_ON_FAILURE):
@@ -1637,6 +1657,17 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     return clip_name, new_path
 
 
+def release_save_lock_if_stuck():
+    obs.timer_remove(release_save_lock_if_stuck)
+    if not CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
+        return
+
+    log.warning("No save event was received. Releasing the save lock.")
+    VARIABLES.force_mode = None
+    VARIABLES.instant_popup_shown = False
+    CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
+
+
 def save_buffer_with_force_mode(mode: ClipNamingModes):
     """
     Sends a request to save the replay buffer and setting a specific clip naming mode.
@@ -1650,7 +1681,17 @@ def save_buffer_with_force_mode(mode: ClipNamingModes):
 
     CONSTANTS.CLIPS_FORCE_MODE_LOCK.acquire()
     VARIABLES.force_mode = mode
+
+    try:
+        VARIABLES.instant_popup_shown = notify_saving(gen_clip_base_name(mode))
+    except Exception:
+        VARIABLES.instant_popup_shown = False
+        log.warning("Failed to show the saving notification.")
+        log.debug(traceback.format_exc())
+
+    obs.timer_remove(release_save_lock_if_stuck)
     obs.obs_frontend_replay_buffer_save()
+    obs.timer_add(release_save_lock_if_stuck, CONSTANTS.SAVE_REQUEST_TIMEOUT_MS)
 
 
 # -------------------- obs_events_callbacks.py --------------------
@@ -1710,13 +1751,15 @@ def on_buffer_save_callback(event):
         if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_RESTART_BUFFER):
             request_buffer_restart()
 
-        notify(True, path, path_display_mode=path_display_type)
+        notify(True, path, path_display_mode=path_display_type, skip_popup=VARIABLES.instant_popup_shown)
     except Exception:
         log.error("An error occurred while moving file to the new destination.")
         log.debug(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
     finally:
+        obs.timer_remove(release_save_lock_if_stuck)
         VARIABLES.force_mode = None
+        VARIABLES.instant_popup_shown = False
         if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
             CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
     log.debug("-" * 50)
@@ -1791,13 +1834,13 @@ def append_video_exe_history():
 # -------------------- hotkeys.py --------------------
 def load_hotkeys():
     keys = (
-        (PN.HK_SAVE_BUFFER_MODE_1, "[Smart Replays] Save buffer (active exe)",
+        (PN.HK_SAVE_BUFFER_MODE_1, "[Smart Replays] Save clip (name after current app)",
          lambda pressed: save_buffer_with_force_mode(ClipNamingModes.CURRENT_PROCESS) if pressed else None),
 
-        (PN.HK_SAVE_BUFFER_MODE_2, "[Smart Replays] Save buffer (most recorded exe)",
+        (PN.HK_SAVE_BUFFER_MODE_2, "[Smart Replays] Save clip (name after most active app)",
          lambda pressed: save_buffer_with_force_mode(ClipNamingModes.MOST_RECORDED_PROCESS) if pressed else None),
 
-        (PN.HK_SAVE_BUFFER_MODE_3, "[Smart Replays] Save buffer (active scene)",
+        (PN.HK_SAVE_BUFFER_MODE_3, "[Smart Replays] Save clip (name after current scene)",
          lambda pressed: save_buffer_with_force_mode(ClipNamingModes.CURRENT_SCENE) if pressed else None)
     )
 
@@ -1891,6 +1934,7 @@ def script_unload():
     obs.timer_remove(restart_replay_buffering_callback)
     obs.timer_remove(start_buffer_when_ready)
     obs.timer_remove(verify_buffer_started)
+    obs.timer_remove(release_save_lock_if_stuck)
 
     log.debug("Script unloaded.")
 

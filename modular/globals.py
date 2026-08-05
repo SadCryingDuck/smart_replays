@@ -25,7 +25,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.3.1"
+    VERSION = "1.4.1"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -39,6 +39,7 @@ class CONSTANTS:
     BUFFER_RESTART_MAX_ATTEMPTS = 100
     BUFFER_START_VERIFY_DELAY_MS = 3000
     BUFFER_START_MAX_RETRIES = 2
+    SAVE_REQUEST_TIMEOUT_MS = 60000
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -57,6 +58,7 @@ class VARIABLES:
     restart_pending: bool = False
     restart_attempts: int = 0
     start_attempts: int = 0
+    instant_popup_shown: bool = False
 
 
 class ConfigTypes(Enum):

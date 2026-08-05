@@ -21,6 +21,9 @@ import time
 import sys
 
 VREFRESH = 116
+SLIDE_DURATION_SECONDS = 0.1
+SLIDE_GAP_SECONDS = 0.04
+SCROLL_START_DELAY_MS = 600
 ctypes.windll.user32.GetDC.restype = wintypes.HDC
 ctypes.windll.user32.GetDC.argtypes = (wintypes.HWND,)
 ctypes.windll.user32.ReleaseDC.argtypes = (wintypes.HWND, wintypes.HDC)
@@ -160,7 +163,7 @@ class NotificationWindow:
                                      on_finish_callback=self.on_text_anim_finished_callback)
 
 
-    def animate_frame(self, frame: tk.Frame, target_w, duration: float = 0.15):
+    def animate_frame(self, frame: tk.Frame, target_w, duration: float = SLIDE_DURATION_SECONDS):
         init_w = frame.winfo_width()
         steps = max(1, int(duration * self.fps))
         frame_delay = duration / steps
@@ -178,15 +181,15 @@ class NotificationWindow:
 
     def show(self):
         self.animate_frame(self.first_frame, self.wnd_w)
-        time.sleep(0.1)
+        time.sleep(SLIDE_GAP_SECONDS)
         self.second_frame.lift()
         self.animate_frame(self.second_frame, self.wnd_w - self.second_frame_padding_x)
-        self.root.after(1000, self.message.update_scroll)
+        self.root.after(SCROLL_START_DELAY_MS, self.message.update_scroll)
         self.root.mainloop()
 
     def close(self):
         self.animate_frame(self.second_frame, 0)
-        time.sleep(0.1)
+        time.sleep(SLIDE_GAP_SECONDS)
         self.animate_frame(self.first_frame, 0)
         self.window.destroy()
         self.root.destroy()

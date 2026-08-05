@@ -20,6 +20,7 @@ from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_
 from .obs_events_callbacks import (on_buffer_save_callback,
                                    on_buffer_recording_started_callback,
                                    on_buffer_recording_stopped_callback)
+from .save_buffer import release_save_lock_if_stuck
 from .script_helpers import load_aliases
 from .updates_check import check_updates_in_background
 from .hotkeys import load_hotkeys
@@ -109,6 +110,7 @@ def script_unload():
     obs.timer_remove(restart_replay_buffering_callback)
     obs.timer_remove(start_buffer_when_ready)
     obs.timer_remove(verify_buffer_started)
+    obs.timer_remove(release_save_lock_if_stuck)
 
     log.debug("Script unloaded.")
 

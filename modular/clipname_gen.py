@@ -15,7 +15,6 @@
 from .globals import VARIABLES, CONSTANTS, PN, ClipNamingModes
 
 from .tech import get_active_window_pid, get_executable_path, log
-from .obs_related import get_current_scene_name
 
 import obspython as obs
 from pathlib import Path
@@ -62,7 +61,7 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
 
     else:
         log.debug("Clip filename depends on the name of the current scene name.")
-        return sanitize_clip_name(get_current_scene_name())
+        return sanitize_clip_name(VARIABLES.current_scene_name) or CONSTANTS.DEFAULT_CLIP_NAME
 
 
 def get_alias(executable_path: str | Path, aliases_dict: dict[Path, str]) -> str | None:
@@ -130,10 +129,10 @@ def ensure_unique_filename(file_path: str | Path) -> Path:
     """
     file_path = Path(file_path)
     parent, stem, suffix = file_path.parent, file_path.stem, file_path.suffix
-    counter = 1
 
-    while file_path.exists():
+    for counter in range(1, CONSTANTS.MAX_UNIQUE_FILENAME_ATTEMPTS + 1):
+        if not file_path.exists():
+            return file_path
         file_path = parent / f"{stem} ({counter}){suffix}"
-        counter += 1
 
-    return file_path
+    raise FileExistsError(f"Could not find a free file name for {file_path}.")

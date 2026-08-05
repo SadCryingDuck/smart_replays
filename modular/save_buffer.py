@@ -22,6 +22,7 @@ from pathlib import Path
 import obspython as obs
 import os
 import shutil
+import time
 import traceback
 
 
@@ -60,17 +61,6 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     return clip_name, new_path
 
 
-def release_save_lock_if_stuck():
-    obs.timer_remove(release_save_lock_if_stuck)
-    if not CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
-        return
-
-    log.warning("No save event was received. Releasing the save lock.")
-    VARIABLES.force_mode = None
-    VARIABLES.instant_popup_shown = False
-    CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
-
-
 def save_buffer_with_force_mode(mode: ClipNamingModes):
     """
     Sends a request to save the replay buffer and setting a specific clip naming mode.
@@ -80,9 +70,17 @@ def save_buffer_with_force_mode(mode: ClipNamingModes):
         return
 
     if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
-        return
+        waited = time.monotonic() - VARIABLES.save_requested_at
+        if waited < CONSTANTS.SAVE_REQUEST_TIMEOUT_SECONDS:
+            return
+
+        log.warning("The previous save never completed. Releasing the save lock.")
+        VARIABLES.force_mode = None
+        VARIABLES.instant_popup_shown = False
+        CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
 
     CONSTANTS.CLIPS_FORCE_MODE_LOCK.acquire()
+    VARIABLES.save_requested_at = time.monotonic()
     VARIABLES.force_mode = mode
 
     try:
@@ -92,6 +90,4 @@ def save_buffer_with_force_mode(mode: ClipNamingModes):
         log.warning("Failed to show the saving notification.")
         log.debug(traceback.format_exc())
 
-    obs.timer_remove(release_save_lock_if_stuck)
     obs.obs_frontend_replay_buffer_save()
-    obs.timer_add(release_save_lock_if_stuck, CONSTANTS.SAVE_REQUEST_TIMEOUT_MS)

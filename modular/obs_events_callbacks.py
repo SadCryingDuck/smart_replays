@@ -14,15 +14,26 @@
 
 from .globals import VARIABLES, PN, CONSTANTS, PopupPathDisplayModes
 from .tech import log
-from .obs_related import get_replay_buffer_max_time, request_buffer_restart, begin_restart_polling
+from .obs_related import (get_replay_buffer_max_time, request_buffer_restart, begin_restart_polling,
+                          get_current_scene_name)
 from .script_helpers import notify
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history, append_video_exe_history
-from .save_buffer import move_clip_file, release_save_lock_if_stuck
+from .save_buffer import move_clip_file
 from pathlib import Path
 
 import obspython as obs
 from collections import deque, defaultdict
 import traceback
+
+
+def on_scene_changed_callback(event):
+    if event is not obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
+        return
+
+    try:
+        VARIABLES.current_scene_name = get_current_scene_name()
+    except Exception:
+        log.debug(traceback.format_exc())
 
 
 def on_buffer_recording_started_callback(event):
@@ -87,7 +98,6 @@ def on_buffer_save_callback(event):
         log.debug(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
     finally:
-        obs.timer_remove(release_save_lock_if_stuck)
         VARIABLES.force_mode = None
         VARIABLES.instant_popup_shown = False
         if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():

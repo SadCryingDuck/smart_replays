@@ -250,7 +250,8 @@ class CONSTANTS:
     BUFFER_RESTART_MAX_ATTEMPTS = 100
     BUFFER_START_VERIFY_DELAY_MS = 3000
     BUFFER_START_MAX_RETRIES = 2
-    SAVE_REQUEST_TIMEOUT_MS = 60000
+    SAVE_REQUEST_TIMEOUT_SECONDS = 60
+    MAX_UNIQUE_FILENAME_ATTEMPTS = 1000
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -270,6 +271,10 @@ class VARIABLES:
     restart_attempts: int = 0
     start_attempts: int = 0
     instant_popup_shown: bool = False
+    save_requested_at: float = 0.0
+    popups_enabled: bool = False
+    popup_on_success: bool = False
+    current_scene_name: str = ""
 
 
 class ConfigTypes(Enum):
@@ -1430,9 +1435,7 @@ def verify_buffer_started():
 
 # -------------------- script_helpers.py --------------------
 def notify_saving(clip_name: str) -> bool:
-    if not obs.obs_data_get_bool(VARIABLES.script_settings, PN.GR_POPUP_NOTIFICATION_SETTINGS):
-        return False
-    if not obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS):
+    if not VARIABLES.popups_enabled or not VARIABLES.popup_on_success:
         return False
 
     show_popup_notification(get_python_exe(), "Saving clip", clip_name)
@@ -1544,7 +1547,7 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
 
     else:
         log.debug("Clip filename depends on the name of the current scene name.")
-        return sanitize_clip_name(get_current_scene_name())
+        return sanitize_clip_name(VARIABLES.current_scene_name) or CONSTANTS.DEFAULT_CLIP_NAME
 
 
 def get_alias(executable_path: str | Path, aliases_dict: dict[Path, str]) -> str | None:
@@ -1612,13 +1615,13 @@ def ensure_unique_filename(file_path: str | Path) -> Path:
     """
     file_path = Path(file_path)
     parent, stem, suffix = file_path.parent, file_path.stem, file_path.suffix
-    counter = 1
 
-    while file_path.exists():
+    for counter in range(1, CONSTANTS.MAX_UNIQUE_FILENAME_ATTEMPTS + 1):
+        if not file_path.exists():
+            return file_path
         file_path = parent / f"{stem} ({counter}){suffix}"
-        counter += 1
 
-    return file_path
+    raise FileExistsError(f"Could not find a free file name for {file_path}.")
 
 
 # -------------------- save_buffer.py --------------------
@@ -1657,17 +1660,6 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     return clip_name, new_path
 
 
-def release_save_lock_if_stuck():
-    obs.timer_remove(release_save_lock_if_stuck)
-    if not CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
-        return
-
-    log.warning("No save event was received. Releasing the save lock.")
-    VARIABLES.force_mode = None
-    VARIABLES.instant_popup_shown = False
-    CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
-
-
 def save_buffer_with_force_mode(mode: ClipNamingModes):
     """
     Sends a request to save the replay buffer and setting a specific clip naming mode.
@@ -1677,9 +1669,17 @@ def save_buffer_with_force_mode(mode: ClipNamingModes):
         return
 
     if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
-        return
+        waited = time.monotonic() - VARIABLES.save_requested_at
+        if waited < CONSTANTS.SAVE_REQUEST_TIMEOUT_SECONDS:
+            return
+
+        log.warning("The previous save never completed. Releasing the save lock.")
+        VARIABLES.force_mode = None
+        VARIABLES.instant_popup_shown = False
+        CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
 
     CONSTANTS.CLIPS_FORCE_MODE_LOCK.acquire()
+    VARIABLES.save_requested_at = time.monotonic()
     VARIABLES.force_mode = mode
 
     try:
@@ -1689,12 +1689,20 @@ def save_buffer_with_force_mode(mode: ClipNamingModes):
         log.warning("Failed to show the saving notification.")
         log.debug(traceback.format_exc())
 
-    obs.timer_remove(release_save_lock_if_stuck)
     obs.obs_frontend_replay_buffer_save()
-    obs.timer_add(release_save_lock_if_stuck, CONSTANTS.SAVE_REQUEST_TIMEOUT_MS)
 
 
 # -------------------- obs_events_callbacks.py --------------------
+def on_scene_changed_callback(event):
+    if event is not obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
+        return
+
+    try:
+        VARIABLES.current_scene_name = get_current_scene_name()
+    except Exception:
+        log.debug(traceback.format_exc())
+
+
 def on_buffer_recording_started_callback(event):
     """
     Resets and starts recording executables history.
@@ -1757,7 +1765,6 @@ def on_buffer_save_callback(event):
         log.debug(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
     finally:
-        obs.timer_remove(release_save_lock_if_stuck)
         VARIABLES.force_mode = None
         VARIABLES.instant_popup_shown = False
         if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
@@ -1889,6 +1896,8 @@ def script_defaults(s):
 def script_update(settings):
     VARIABLES.script_settings = settings
     setup_logging(obs.obs_data_get_bool(settings, PN.PROP_DEBUG_MODE))
+    VARIABLES.popups_enabled = obs.obs_data_get_bool(settings, PN.GR_POPUP_NOTIFICATION_SETTINGS)
+    VARIABLES.popup_on_success = obs.obs_data_get_bool(settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS)
 
     log.debug("Updating script...")
     log.debug(obs.obs_data_get_json(VARIABLES.script_settings))
@@ -1911,12 +1920,23 @@ def script_load(script_settings):
     log.debug("Loading script...")
     check_updates_in_background(CONSTANTS.VERSION)
 
-    json_settings = json.loads(obs.obs_data_get_json(script_settings))
-    load_aliases(json_settings)
+    try:
+        json_settings = json.loads(obs.obs_data_get_json(script_settings))
+        load_aliases(json_settings)
+    except Exception:
+        VARIABLES.aliases = {}
+        log.error("Failed to load aliases. Clips will be named after the executable.")
+        log.debug(traceback.format_exc())
+
+    try:
+        VARIABLES.current_scene_name = get_current_scene_name()
+    except Exception:
+        log.debug(traceback.format_exc())
 
     obs.obs_frontend_add_event_callback(on_buffer_save_callback)
     obs.obs_frontend_add_event_callback(on_buffer_recording_started_callback)
     obs.obs_frontend_add_event_callback(on_buffer_recording_stopped_callback)
+    obs.obs_frontend_add_event_callback(on_scene_changed_callback)
 
     # obs.obs_frontend_add_event_callback(on_video_recording_started_callback)  # todo: for future updates
     # obs.obs_frontend_add_event_callback(on_video_recording_stopping_callback)  # todo: for future updates
@@ -1934,7 +1954,6 @@ def script_unload():
     obs.timer_remove(restart_replay_buffering_callback)
     obs.timer_remove(start_buffer_when_ready)
     obs.timer_remove(verify_buffer_started)
-    obs.timer_remove(release_save_lock_if_stuck)
 
     log.debug("Script unloaded.")
 

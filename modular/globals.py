@@ -39,7 +39,8 @@ class CONSTANTS:
     BUFFER_RESTART_MAX_ATTEMPTS = 100
     BUFFER_START_VERIFY_DELAY_MS = 3000
     BUFFER_START_MAX_RETRIES = 2
-    SAVE_REQUEST_TIMEOUT_MS = 60000
+    SAVE_REQUEST_TIMEOUT_SECONDS = 60
+    MAX_UNIQUE_FILENAME_ATTEMPTS = 1000
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -59,6 +60,10 @@ class VARIABLES:
     restart_attempts: int = 0
     start_attempts: int = 0
     instant_popup_shown: bool = False
+    save_requested_at: float = 0.0
+    popups_enabled: bool = False
+    popup_on_success: bool = False
+    current_scene_name: str = ""
 
 
 class ConfigTypes(Enum):

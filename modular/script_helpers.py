@@ -25,9 +25,7 @@ import obspython as obs
 
 
 def notify_saving(clip_name: str) -> bool:
-    if not obs.obs_data_get_bool(VARIABLES.script_settings, PN.GR_POPUP_NOTIFICATION_SETTINGS):
-        return False
-    if not obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS):
+    if not VARIABLES.popups_enabled or not VARIABLES.popup_on_success:
         return False
 
     show_popup_notification(get_python_exe(), "Saving clip", clip_name)

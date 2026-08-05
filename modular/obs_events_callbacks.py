@@ -14,7 +14,8 @@
 
 from .globals import VARIABLES, PN, CONSTANTS, PopupPathDisplayModes
 from .tech import log
-from .obs_related import get_replay_buffer_max_time, request_buffer_restart, begin_restart_polling
+from .obs_related import (get_replay_buffer_max_time, request_buffer_restart, begin_restart_polling,
+                          get_current_scene_name)
 from .script_helpers import notify
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history, append_video_exe_history
 from .save_buffer import move_clip_file
@@ -23,6 +24,16 @@ from pathlib import Path
 import obspython as obs
 from collections import deque, defaultdict
 import traceback
+
+
+def on_scene_changed_callback(event):
+    if event is not obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
+        return
+
+    try:
+        VARIABLES.current_scene_name = get_current_scene_name()
+    except Exception:
+        log.debug(traceback.format_exc())
 
 
 def on_buffer_recording_started_callback(event):
@@ -58,6 +69,13 @@ def on_buffer_recording_stopped_callback(event):
     if VARIABLES.clip_exe_history is not None:
         VARIABLES.clip_exe_history.clear()
 
+    if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
+        log.warning("Replay buffer stopped while a save was pending. Releasing the save lock.")
+        VARIABLES.force_mode = None
+        VARIABLES.instant_popup_shown = False
+        VARIABLES.pending_clip_name = None
+        CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
+
     if VARIABLES.restart_pending:
         VARIABLES.restart_pending = False
         log.debug("Replay buffer stopped for a restart.")
@@ -81,13 +99,15 @@ def on_buffer_save_callback(event):
         if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_RESTART_BUFFER):
             request_buffer_restart()
 
-        notify(True, path, path_display_mode=path_display_type)
+        notify(True, path, path_display_mode=path_display_type, skip_popup=VARIABLES.instant_popup_shown)
     except Exception:
         log.error("An error occurred while moving file to the new destination.")
         log.debug(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
     finally:
         VARIABLES.force_mode = None
+        VARIABLES.instant_popup_shown = False
+        VARIABLES.pending_clip_name = None
         if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
             CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
     log.debug("-" * 50)

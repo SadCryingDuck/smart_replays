@@ -45,6 +45,9 @@ if __name__ != '__main__':
 
 # -------------------- ui.py --------------------
 VREFRESH = 116
+SLIDE_DURATION_SECONDS = 0.1
+SLIDE_GAP_SECONDS = 0.04
+SCROLL_START_DELAY_MS = 600
 ctypes.windll.user32.GetDC.restype = wintypes.HDC
 ctypes.windll.user32.GetDC.argtypes = (wintypes.HWND,)
 ctypes.windll.user32.ReleaseDC.argtypes = (wintypes.HWND, wintypes.HDC)
@@ -184,7 +187,7 @@ class NotificationWindow:
                                      on_finish_callback=self.on_text_anim_finished_callback)
 
 
-    def animate_frame(self, frame: tk.Frame, target_w, duration: float = 0.15):
+    def animate_frame(self, frame: tk.Frame, target_w, duration: float = SLIDE_DURATION_SECONDS):
         init_w = frame.winfo_width()
         steps = max(1, int(duration * self.fps))
         frame_delay = duration / steps
@@ -202,15 +205,15 @@ class NotificationWindow:
 
     def show(self):
         self.animate_frame(self.first_frame, self.wnd_w)
-        time.sleep(0.1)
+        time.sleep(SLIDE_GAP_SECONDS)
         self.second_frame.lift()
         self.animate_frame(self.second_frame, self.wnd_w - self.second_frame_padding_x)
-        self.root.after(1000, self.message.update_scroll)
+        self.root.after(SCROLL_START_DELAY_MS, self.message.update_scroll)
         self.root.mainloop()
 
     def close(self):
         self.animate_frame(self.second_frame, 0)
-        time.sleep(0.1)
+        time.sleep(SLIDE_GAP_SECONDS)
         self.animate_frame(self.first_frame, 0)
         self.window.destroy()
         self.root.destroy()
@@ -233,7 +236,7 @@ user32 = ctypes.windll.user32
 
 
 class CONSTANTS:
-    VERSION = "1.3.1"
+    VERSION = "1.4.1"
     OBS_VERSION_STRING = obs.obs_get_version_string()
     OBS_VERSION_RE = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     OBS_VERSION = [int(i) for i in OBS_VERSION_RE.match(OBS_VERSION_STRING).groups()]
@@ -247,6 +250,8 @@ class CONSTANTS:
     BUFFER_RESTART_MAX_ATTEMPTS = 100
     BUFFER_START_VERIFY_DELAY_MS = 3000
     BUFFER_START_MAX_RETRIES = 2
+    SAVE_REQUEST_TIMEOUT_SECONDS = 15
+    MAX_UNIQUE_FILENAME_ATTEMPTS = 1000
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
         {"value": f"{sys.executable} > OBS", "selected": False, "hidden": False}
@@ -265,6 +270,13 @@ class VARIABLES:
     restart_pending: bool = False
     restart_attempts: int = 0
     start_attempts: int = 0
+    instant_popup_shown: bool = False
+    save_requested_at: float = 0.0
+    popups_enabled: bool = False
+    popup_on_success: bool = False
+    current_scene_name: str = ""
+    pending_clip_name: str | None = None
+    popup_exe_path: Path | None = None
 
 
 class ConfigTypes(Enum):
@@ -557,7 +569,12 @@ def setup_clip_paths_settings(group_obj):
     t = obs.obs_properties_add_text(
         props=group_obj,
         name=PN.TXT_CLIPS_HOTKEY_TIP,
-        description="You can set up hotkeys for each mode in File -> Settings -> Hotkeys",
+        description="You can set up hotkeys for each mode in File -> Settings -> Hotkeys.\n"
+                    "A Smart Replays hotkey saves the clip in its own mode without changing the mode above, "
+                    "and shows the notification the moment you press the key.\n"
+                    "The built-in OBS 'Save Replay' hotkey uses the mode above, but its notification only "
+                    "appears once OBS has finished writing the clip, which takes a few seconds.\n"
+                    "Use one or the other. If both are bound to the same key, that key sends two save requests.",
         type=obs.OBS_TEXT_INFO
     )
     obs.obs_property_text_set_info_type(t, obs.OBS_TEXT_INFO_WARNING)
@@ -1212,6 +1229,12 @@ def get_executable_path(pid: int) -> Path:
     raise RuntimeError(f"Cannot get executable path for process {pid}.")
 
 
+def is_popup_process(executable_path: str | Path) -> bool:
+    if VARIABLES.popup_exe_path is None:
+        return False
+    return Path(executable_path) == VARIABLES.popup_exe_path
+
+
 def play_sound(path: str | Path):
     """
     Plays sound using windows engine.
@@ -1419,7 +1442,15 @@ def verify_buffer_started():
 
 
 # -------------------- script_helpers.py --------------------
-def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayModes):
+def notify_saving(clip_name: str) -> bool:
+    if not VARIABLES.popups_enabled or not VARIABLES.popup_on_success:
+        return False
+
+    show_popup_notification(get_python_exe(), "Saving clip", clip_name)
+    return True
+
+
+def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayModes, skip_popup: bool = False):
     """
     Plays and shows success / failure notification if it's enabled in notifications settings.
     """
@@ -1439,7 +1470,7 @@ def notify(success: bool, clip_path: Path, path_display_mode: PopupPathDisplayMo
             path = obs.obs_data_get_string(VARIABLES.script_settings, PN.PROP_NOTIFY_CLIPS_ON_SUCCESS_PATH)
             play_sound(path)
 
-        if popup_notifications and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS):
+        if popup_notifications and not skip_popup and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS):
             show_popup_notification(python_exe, "Clip saved", f"Clip saved to {clip_path}")
     else:
         if sound_notifications and obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_NOTIFY_CLIPS_ON_FAILURE):
@@ -1511,6 +1542,10 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
                 log.warning("Failed to get the active window executable path.")
                 log.debug(traceback.format_exc())
 
+            if executable_path is not None and is_popup_process(executable_path):
+                log.debug("The notification window is in the foreground, using the last recorded app.")
+                executable_path = next(iter(VARIABLES.clip_exe_history or []), None)
+
         if executable_path is None:
             log.debug(f"Falling back to default clip name: {CONSTANTS.DEFAULT_CLIP_NAME}")
             return CONSTANTS.DEFAULT_CLIP_NAME
@@ -1524,7 +1559,7 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
 
     else:
         log.debug("Clip filename depends on the name of the current scene name.")
-        return sanitize_clip_name(get_current_scene_name())
+        return sanitize_clip_name(VARIABLES.current_scene_name) or CONSTANTS.DEFAULT_CLIP_NAME
 
 
 def get_alias(executable_path: str | Path, aliases_dict: dict[Path, str]) -> str | None:
@@ -1592,13 +1627,13 @@ def ensure_unique_filename(file_path: str | Path) -> Path:
     """
     file_path = Path(file_path)
     parent, stem, suffix = file_path.parent, file_path.stem, file_path.suffix
-    counter = 1
 
-    while file_path.exists():
+    for counter in range(1, CONSTANTS.MAX_UNIQUE_FILENAME_ATTEMPTS + 1):
+        if not file_path.exists():
+            return file_path
         file_path = parent / f"{stem} ({counter}){suffix}"
-        counter += 1
 
-    return file_path
+    raise FileExistsError(f"Could not find a free file name for {file_path}.")
 
 
 # -------------------- save_buffer.py --------------------
@@ -1608,7 +1643,7 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     if not old_file_path:
         raise FileNotFoundError("OBS did not return a replay file path.")
 
-    clip_name = gen_clip_base_name(mode)
+    clip_name = VARIABLES.pending_clip_name or gen_clip_base_name(mode)
     ext = Path(old_file_path).suffix
     filename_template = obs.obs_data_get_string(VARIABLES.script_settings,
                                                 PN.PROP_CLIPS_FILENAME_TEMPLATE)
@@ -1643,17 +1678,48 @@ def save_buffer_with_force_mode(mode: ClipNamingModes):
     Can only be called using hotkeys.
     """
     if not obs.obs_frontend_replay_buffer_active():
+        log.warning("Replay buffer is not running, there is nothing to save.")
         return
 
     if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
-        return
+        waited = time.monotonic() - VARIABLES.save_requested_at
+        if waited < CONSTANTS.SAVE_REQUEST_TIMEOUT_SECONDS:
+            log.warning(f"A save has been in progress for {waited:.1f}s. This one was ignored.")
+            return
+
+        log.warning("The previous save never completed. Releasing the save lock.")
+        VARIABLES.force_mode = None
+        VARIABLES.instant_popup_shown = False
+        VARIABLES.pending_clip_name = None
+        CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
 
     CONSTANTS.CLIPS_FORCE_MODE_LOCK.acquire()
+    VARIABLES.save_requested_at = time.monotonic()
     VARIABLES.force_mode = mode
+
+    try:
+        VARIABLES.pending_clip_name = gen_clip_base_name(mode)
+        VARIABLES.instant_popup_shown = notify_saving(VARIABLES.pending_clip_name)
+    except Exception:
+        VARIABLES.pending_clip_name = None
+        VARIABLES.instant_popup_shown = False
+        log.warning("Failed to show the saving notification.")
+        log.debug(traceback.format_exc())
+
     obs.obs_frontend_replay_buffer_save()
 
 
 # -------------------- obs_events_callbacks.py --------------------
+def on_scene_changed_callback(event):
+    if event is not obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
+        return
+
+    try:
+        VARIABLES.current_scene_name = get_current_scene_name()
+    except Exception:
+        log.debug(traceback.format_exc())
+
+
 def on_buffer_recording_started_callback(event):
     """
     Resets and starts recording executables history.
@@ -1687,6 +1753,13 @@ def on_buffer_recording_stopped_callback(event):
     if VARIABLES.clip_exe_history is not None:
         VARIABLES.clip_exe_history.clear()
 
+    if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
+        log.warning("Replay buffer stopped while a save was pending. Releasing the save lock.")
+        VARIABLES.force_mode = None
+        VARIABLES.instant_popup_shown = False
+        VARIABLES.pending_clip_name = None
+        CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
+
     if VARIABLES.restart_pending:
         VARIABLES.restart_pending = False
         log.debug("Replay buffer stopped for a restart.")
@@ -1710,13 +1783,15 @@ def on_buffer_save_callback(event):
         if obs.obs_data_get_bool(VARIABLES.script_settings, PN.PROP_RESTART_BUFFER):
             request_buffer_restart()
 
-        notify(True, path, path_display_mode=path_display_type)
+        notify(True, path, path_display_mode=path_display_type, skip_popup=VARIABLES.instant_popup_shown)
     except Exception:
         log.error("An error occurred while moving file to the new destination.")
         log.debug(traceback.format_exc())
         notify(False, Path(), path_display_mode=path_display_type)
     finally:
         VARIABLES.force_mode = None
+        VARIABLES.instant_popup_shown = False
+        VARIABLES.pending_clip_name = None
         if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
             CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
     log.debug("-" * 50)
@@ -1775,7 +1850,8 @@ def append_clip_exe_history():
     with suppress(Exception):
         pid = get_active_window_pid()
         exe = get_executable_path(pid)
-        VARIABLES.clip_exe_history.appendleft(exe)
+        if not is_popup_process(exe):
+            VARIABLES.clip_exe_history.appendleft(exe)
 
 
 def append_video_exe_history():
@@ -1791,13 +1867,13 @@ def append_video_exe_history():
 # -------------------- hotkeys.py --------------------
 def load_hotkeys():
     keys = (
-        (PN.HK_SAVE_BUFFER_MODE_1, "[Smart Replays] Save buffer (active exe)",
+        (PN.HK_SAVE_BUFFER_MODE_1, "[Smart Replays] Save clip (name after current app)",
          lambda pressed: save_buffer_with_force_mode(ClipNamingModes.CURRENT_PROCESS) if pressed else None),
 
-        (PN.HK_SAVE_BUFFER_MODE_2, "[Smart Replays] Save buffer (most recorded exe)",
+        (PN.HK_SAVE_BUFFER_MODE_2, "[Smart Replays] Save clip (name after most active app)",
          lambda pressed: save_buffer_with_force_mode(ClipNamingModes.MOST_RECORDED_PROCESS) if pressed else None),
 
-        (PN.HK_SAVE_BUFFER_MODE_3, "[Smart Replays] Save buffer (active scene)",
+        (PN.HK_SAVE_BUFFER_MODE_3, "[Smart Replays] Save clip (name after current scene)",
          lambda pressed: save_buffer_with_force_mode(ClipNamingModes.CURRENT_SCENE) if pressed else None)
     )
 
@@ -1846,6 +1922,8 @@ def script_defaults(s):
 def script_update(settings):
     VARIABLES.script_settings = settings
     setup_logging(obs.obs_data_get_bool(settings, PN.PROP_DEBUG_MODE))
+    VARIABLES.popups_enabled = obs.obs_data_get_bool(settings, PN.GR_POPUP_NOTIFICATION_SETTINGS)
+    VARIABLES.popup_on_success = obs.obs_data_get_bool(settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS)
 
     log.debug("Updating script...")
     log.debug(obs.obs_data_get_json(VARIABLES.script_settings))
@@ -1868,12 +1946,28 @@ def script_load(script_settings):
     log.debug("Loading script...")
     check_updates_in_background(CONSTANTS.VERSION)
 
-    json_settings = json.loads(obs.obs_data_get_json(script_settings))
-    load_aliases(json_settings)
+    try:
+        json_settings = json.loads(obs.obs_data_get_json(script_settings))
+        load_aliases(json_settings)
+    except Exception:
+        VARIABLES.aliases = {}
+        log.error("Failed to load aliases. Clips will be named after the executable.")
+        log.debug(traceback.format_exc())
+
+    try:
+        VARIABLES.current_scene_name = get_current_scene_name()
+    except Exception:
+        log.debug(traceback.format_exc())
+
+    try:
+        VARIABLES.popup_exe_path = Path(get_python_exe())
+    except Exception:
+        log.debug(traceback.format_exc())
 
     obs.obs_frontend_add_event_callback(on_buffer_save_callback)
     obs.obs_frontend_add_event_callback(on_buffer_recording_started_callback)
     obs.obs_frontend_add_event_callback(on_buffer_recording_stopped_callback)
+    obs.obs_frontend_add_event_callback(on_scene_changed_callback)
 
     # obs.obs_frontend_add_event_callback(on_video_recording_started_callback)  # todo: for future updates
     # obs.obs_frontend_add_event_callback(on_video_recording_stopping_callback)  # todo: for future updates

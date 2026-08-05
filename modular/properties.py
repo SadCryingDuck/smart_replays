@@ -145,7 +145,12 @@ def setup_clip_paths_settings(group_obj):
     t = obs.obs_properties_add_text(
         props=group_obj,
         name=PN.TXT_CLIPS_HOTKEY_TIP,
-        description="You can set up hotkeys for each mode in File -> Settings -> Hotkeys",
+        description="You can set up hotkeys for each mode in File -> Settings -> Hotkeys.\n"
+                    "A Smart Replays hotkey saves the clip in its own mode without changing the mode above, "
+                    "and shows the notification the moment you press the key.\n"
+                    "The built-in OBS 'Save Replay' hotkey uses the mode above, but its notification only "
+                    "appears once OBS has finished writing the clip, which takes a few seconds.\n"
+                    "Use one or the other. If both are bound to the same key, that key sends two save requests.",
         type=obs.OBS_TEXT_INFO
     )
     obs.obs_property_text_set_info_type(t, obs.OBS_TEXT_INFO_WARNING)

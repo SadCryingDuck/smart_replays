@@ -15,17 +15,22 @@
 from .globals import VARIABLES, CONSTANTS, ClipNamingModes, PopupPathDisplayModes, PN
 
 from .tech import log, setup_logging
-from .obs_related import get_base_path, start_buffer_when_ready, verify_buffer_started
+from .obs_related import (get_base_path, start_buffer_when_ready, verify_buffer_started,
+                          get_current_scene_name, get_python_exe)
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history
 from .obs_events_callbacks import (on_buffer_save_callback,
                                    on_buffer_recording_started_callback,
-                                   on_buffer_recording_stopped_callback)
+                                   on_buffer_recording_stopped_callback,
+                                   on_scene_changed_callback)
 from .script_helpers import load_aliases
 from .updates_check import check_updates_in_background
 from .hotkeys import load_hotkeys
 
+from pathlib import Path
+
 import obspython as obs
 import json
+import traceback
 
 
 def script_defaults(s):
@@ -64,6 +69,8 @@ def script_defaults(s):
 def script_update(settings):
     VARIABLES.script_settings = settings
     setup_logging(obs.obs_data_get_bool(settings, PN.PROP_DEBUG_MODE))
+    VARIABLES.popups_enabled = obs.obs_data_get_bool(settings, PN.GR_POPUP_NOTIFICATION_SETTINGS)
+    VARIABLES.popup_on_success = obs.obs_data_get_bool(settings, PN.PROP_POPUP_CLIPS_ON_SUCCESS)
 
     log.debug("Updating script...")
     log.debug(obs.obs_data_get_json(VARIABLES.script_settings))
@@ -86,12 +93,28 @@ def script_load(script_settings):
     log.debug("Loading script...")
     check_updates_in_background(CONSTANTS.VERSION)
 
-    json_settings = json.loads(obs.obs_data_get_json(script_settings))
-    load_aliases(json_settings)
+    try:
+        json_settings = json.loads(obs.obs_data_get_json(script_settings))
+        load_aliases(json_settings)
+    except Exception:
+        VARIABLES.aliases = {}
+        log.error("Failed to load aliases. Clips will be named after the executable.")
+        log.debug(traceback.format_exc())
+
+    try:
+        VARIABLES.current_scene_name = get_current_scene_name()
+    except Exception:
+        log.debug(traceback.format_exc())
+
+    try:
+        VARIABLES.popup_exe_path = Path(get_python_exe())
+    except Exception:
+        log.debug(traceback.format_exc())
 
     obs.obs_frontend_add_event_callback(on_buffer_save_callback)
     obs.obs_frontend_add_event_callback(on_buffer_recording_started_callback)
     obs.obs_frontend_add_event_callback(on_buffer_recording_stopped_callback)
+    obs.obs_frontend_add_event_callback(on_scene_changed_callback)
 
     # obs.obs_frontend_add_event_callback(on_video_recording_started_callback)  # todo: for future updates
     # obs.obs_frontend_add_event_callback(on_video_recording_stopping_callback)  # todo: for future updates

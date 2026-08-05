@@ -15,7 +15,7 @@
 
 from .globals import VARIABLES
 from .obs_related import get_replay_buffer_max_time, request_buffer_restart
-from .tech import get_time_since_last_input, get_active_window_pid, get_executable_path, log
+from .tech import get_time_since_last_input, get_active_window_pid, get_executable_path, is_popup_process, log
 
 import obspython as obs
 from contextlib import suppress
@@ -51,7 +51,8 @@ def append_clip_exe_history():
     with suppress(Exception):
         pid = get_active_window_pid()
         exe = get_executable_path(pid)
-        VARIABLES.clip_exe_history.appendleft(exe)
+        if not is_popup_process(exe):
+            VARIABLES.clip_exe_history.appendleft(exe)
 
 
 def append_video_exe_history():

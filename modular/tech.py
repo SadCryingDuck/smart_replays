@@ -12,7 +12,7 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 
-from .globals import user32
+from .globals import user32, VARIABLES
 
 import ctypes
 from ctypes import wintypes
@@ -91,6 +91,12 @@ def get_executable_path(pid: int) -> Path:
         kernel32.CloseHandle(process_handle)
 
     raise RuntimeError(f"Cannot get executable path for process {pid}.")
+
+
+def is_popup_process(executable_path: str | Path) -> bool:
+    if VARIABLES.popup_exe_path is None:
+        return False
+    return Path(executable_path) == VARIABLES.popup_exe_path
 
 
 def play_sound(path: str | Path):

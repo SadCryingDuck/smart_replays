@@ -16,7 +16,7 @@ from .globals import VARIABLES, CONSTANTS, ClipNamingModes, PopupPathDisplayMode
 
 from .tech import log, setup_logging
 from .obs_related import (get_base_path, start_buffer_when_ready, verify_buffer_started,
-                          get_current_scene_name)
+                          get_current_scene_name, get_python_exe)
 from .other_callbacks import restart_replay_buffering_callback, append_clip_exe_history
 from .obs_events_callbacks import (on_buffer_save_callback,
                                    on_buffer_recording_started_callback,
@@ -25,6 +25,8 @@ from .obs_events_callbacks import (on_buffer_save_callback,
 from .script_helpers import load_aliases
 from .updates_check import check_updates_in_background
 from .hotkeys import load_hotkeys
+
+from pathlib import Path
 
 import obspython as obs
 import json
@@ -101,6 +103,11 @@ def script_load(script_settings):
 
     try:
         VARIABLES.current_scene_name = get_current_scene_name()
+    except Exception:
+        log.debug(traceback.format_exc())
+
+    try:
+        VARIABLES.popup_exe_path = Path(get_python_exe())
     except Exception:
         log.debug(traceback.format_exc())
 

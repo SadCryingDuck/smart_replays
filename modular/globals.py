@@ -39,7 +39,7 @@ class CONSTANTS:
     BUFFER_RESTART_MAX_ATTEMPTS = 100
     BUFFER_START_VERIFY_DELAY_MS = 3000
     BUFFER_START_MAX_RETRIES = 2
-    SAVE_REQUEST_TIMEOUT_SECONDS = 60
+    SAVE_REQUEST_TIMEOUT_SECONDS = 15
     MAX_UNIQUE_FILENAME_ATTEMPTS = 1000
     DEFAULT_ALIASES = (
         {"value": "C:\\Windows\\explorer.exe > Desktop", "selected": False, "hidden": False},
@@ -64,6 +64,8 @@ class VARIABLES:
     popups_enabled: bool = False
     popup_on_success: bool = False
     current_scene_name: str = ""
+    pending_clip_name: str | None = None
+    popup_exe_path: Path | None = None
 
 
 class ConfigTypes(Enum):

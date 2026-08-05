@@ -14,7 +14,7 @@
 
 from .globals import VARIABLES, CONSTANTS, PN, ClipNamingModes
 
-from .tech import get_active_window_pid, get_executable_path, log
+from .tech import get_active_window_pid, get_executable_path, is_popup_process, log
 
 import obspython as obs
 from pathlib import Path
@@ -47,6 +47,10 @@ def gen_clip_base_name(mode: ClipNamingModes | None = None) -> str:
             except Exception:
                 log.warning("Failed to get the active window executable path.")
                 log.debug(traceback.format_exc())
+
+            if executable_path is not None and is_popup_process(executable_path):
+                log.debug("The notification window is in the foreground, using the last recorded app.")
+                executable_path = next(iter(VARIABLES.clip_exe_history or []), None)
 
         if executable_path is None:
             log.debug(f"Falling back to default clip name: {CONSTANTS.DEFAULT_CLIP_NAME}")

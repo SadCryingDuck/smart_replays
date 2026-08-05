@@ -32,7 +32,7 @@ def move_clip_file(mode: ClipNamingModes | None = None) -> tuple[str, Path]:
     if not old_file_path:
         raise FileNotFoundError("OBS did not return a replay file path.")
 
-    clip_name = gen_clip_base_name(mode)
+    clip_name = VARIABLES.pending_clip_name or gen_clip_base_name(mode)
     ext = Path(old_file_path).suffix
     filename_template = obs.obs_data_get_string(VARIABLES.script_settings,
                                                 PN.PROP_CLIPS_FILENAME_TEMPLATE)
@@ -67,16 +67,19 @@ def save_buffer_with_force_mode(mode: ClipNamingModes):
     Can only be called using hotkeys.
     """
     if not obs.obs_frontend_replay_buffer_active():
+        log.warning("Replay buffer is not running, there is nothing to save.")
         return
 
     if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
         waited = time.monotonic() - VARIABLES.save_requested_at
         if waited < CONSTANTS.SAVE_REQUEST_TIMEOUT_SECONDS:
+            log.warning(f"A save has been in progress for {waited:.1f}s. This one was ignored.")
             return
 
         log.warning("The previous save never completed. Releasing the save lock.")
         VARIABLES.force_mode = None
         VARIABLES.instant_popup_shown = False
+        VARIABLES.pending_clip_name = None
         CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
 
     CONSTANTS.CLIPS_FORCE_MODE_LOCK.acquire()
@@ -84,8 +87,10 @@ def save_buffer_with_force_mode(mode: ClipNamingModes):
     VARIABLES.force_mode = mode
 
     try:
-        VARIABLES.instant_popup_shown = notify_saving(gen_clip_base_name(mode))
+        VARIABLES.pending_clip_name = gen_clip_base_name(mode)
+        VARIABLES.instant_popup_shown = notify_saving(VARIABLES.pending_clip_name)
     except Exception:
+        VARIABLES.pending_clip_name = None
         VARIABLES.instant_popup_shown = False
         log.warning("Failed to show the saving notification.")
         log.debug(traceback.format_exc())

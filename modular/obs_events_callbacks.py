@@ -69,6 +69,13 @@ def on_buffer_recording_stopped_callback(event):
     if VARIABLES.clip_exe_history is not None:
         VARIABLES.clip_exe_history.clear()
 
+    if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
+        log.warning("Replay buffer stopped while a save was pending. Releasing the save lock.")
+        VARIABLES.force_mode = None
+        VARIABLES.instant_popup_shown = False
+        VARIABLES.pending_clip_name = None
+        CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
+
     if VARIABLES.restart_pending:
         VARIABLES.restart_pending = False
         log.debug("Replay buffer stopped for a restart.")
@@ -100,6 +107,7 @@ def on_buffer_save_callback(event):
     finally:
         VARIABLES.force_mode = None
         VARIABLES.instant_popup_shown = False
+        VARIABLES.pending_clip_name = None
         if CONSTANTS.CLIPS_FORCE_MODE_LOCK.locked():
             CONSTANTS.CLIPS_FORCE_MODE_LOCK.release()
     log.debug("-" * 50)

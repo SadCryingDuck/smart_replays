@@ -45,6 +45,11 @@ if __name__ != '__main__':
 
 # -------------------- ui.py --------------------
 VREFRESH = 116
+GWL_EXSTYLE = -20
+WS_EX_LAYERED = 0x00080000
+WS_EX_TRANSPARENT = 0x00000020
+WS_EX_TOOLWINDOW = 0x00000080
+WS_EX_NOACTIVATE = 0x08000000
 SLIDE_DURATION_SECONDS = 0.1
 SLIDE_GAP_SECONDS = 0.04
 SCROLL_START_DELAY_MS = 600
@@ -53,6 +58,18 @@ ctypes.windll.user32.GetDC.argtypes = (wintypes.HWND,)
 ctypes.windll.user32.ReleaseDC.argtypes = (wintypes.HWND, wintypes.HDC)
 ctypes.windll.gdi32.GetDeviceCaps.restype = ctypes.c_int
 ctypes.windll.gdi32.GetDeviceCaps.argtypes = (wintypes.HDC, ctypes.c_int)
+
+
+def make_overlay(window, previous_foreground) -> None:
+    try:
+        hwnd = int(window.wm_frame(), 16)
+        style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+        style |= WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE
+        ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
+        if previous_foreground and ctypes.windll.user32.GetForegroundWindow() == hwnd:
+            ctypes.windll.user32.SetForegroundWindow(previous_foreground)
+    except Exception:
+        pass
 
 
 def get_monitor_refresh_rate(default: int = 60) -> int:
@@ -132,6 +149,7 @@ class NotificationWindow:
         self.primary_color = primary_color
         self.bg_color = "#000000"
         self.fps = get_monitor_refresh_rate()
+        self.previous_foreground = ctypes.windll.user32.GetForegroundWindow()
 
         self.root = tk.Tk()
         self.root.withdraw()
@@ -175,6 +193,7 @@ class NotificationWindow:
         self.canvas = tk.Canvas(self.content_frame, bg=self.bg_color, highlightthickness=0)
         self.canvas.pack()
         self.canvas.update()
+        make_overlay(self.window, self.previous_foreground)
 
         font = f.Font(family="Cascadia Mono", size=self.message_font_size)
         self.message = ScrollingText(canvas=self.canvas,
